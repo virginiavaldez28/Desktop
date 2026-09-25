@@ -86,7 +86,7 @@ def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplo
         Venta(
             fecha=r.fecha, cliente=clientes[r.tercero], tipo_comprobante=r.tipo_comprobante,
             punto_venta=r.punto_venta, numero=r.numero, periodo=periodos[r.mes], servicio=r.servicio,
-            monto=r.monto, observaciones=r.observaciones, **auditoria,
+            neto=r.monto, observaciones=r.observaciones, **auditoria,
         )
         for r in contenido.ventas
     ])
@@ -103,7 +103,7 @@ def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplo
         Compra(
             fecha=r.fecha, proveedor=proveedores[r.tercero], tipo_comprobante=r.tipo_comprobante,
             punto_venta=r.punto_venta, numero=r.numero, periodo=periodos[r.mes], categoria=r.categoria,
-            servicio_asignado=r.servicio_asignado, monto=r.monto, observaciones=r.observaciones, **auditoria,
+            servicio_asignado=r.servicio_asignado, neto=r.monto, observaciones=r.observaciones, **auditoria,
         )
         for r in compras
     ])

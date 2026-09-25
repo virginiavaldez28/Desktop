@@ -67,6 +67,9 @@ class DatosMes:
     ventas: dict = field(default_factory=_por_servicio)
     # Mano de obra directa ($ Asignado al Servicio, ¿MOD? = Sí) por Servicio Asignado (incluye "POOL").
     mano_obra: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
+    # IVA de las facturas (informativo: la rentabilidad se calcula siempre sin IVA).
+    iva_ventas: Decimal = CERO
+    iva_compras: Decimal = CERO
     # Personas equivalentes con ¿MOD? = Sí, por Servicio Asignado (incluye "POOL").
     # Una persona al 50% en un servicio cuenta 0,5.
     dotacion: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
@@ -88,8 +91,9 @@ class DatosMes:
 
         # Las sumas se hacen en Python con Decimal (y no con SUM en la base) para que
         # el resultado sea exacto al centavo también en SQLite, que suma en punto flotante.
-        for servicio, monto in Venta.objects.filter(periodo=periodo).values_list("servicio", "monto"):
-            datos.ventas[servicio] += monto
+        for servicio, neto, iva in Venta.objects.filter(periodo=periodo).values_list("servicio", "neto", "iva"):
+            datos.ventas[servicio] += neto
+            datos.iva_ventas += iva
 
         for renglon in LiquidacionNomina.objects.filter(periodo=periodo):
             if renglon.mano_obra_directa:
@@ -98,9 +102,10 @@ class DatosMes:
             else:
                 datos.sueldos_administracion += renglon.asignado_servicio
 
-        compras = Compra.objects.filter(periodo=periodo).values_list("categoria", "servicio_asignado", "monto")
-        for categoria, servicio, monto in compras:
-            datos.compras[(categoria, servicio)] += monto
+        compras = Compra.objects.filter(periodo=periodo).values_list("categoria", "servicio_asignado", "neto", "iva")
+        for categoria, servicio, neto, iva in compras:
+            datos.compras[(categoria, servicio)] += neto
+            datos.iva_compras += iva
 
         for rubro, monto in GastoManual.objects.filter(periodo=periodo).values_list("rubro", "monto"):
             datos.gastos[rubro] += monto
@@ -143,6 +148,9 @@ class EstadoResultados:
     resultado_neto: Decimal
     # Parte de "Otros Gastos Operativos" que viene de Registro de Compras.
     compras_otros_egresos: Decimal = CERO
+    # Memo de IVA (no forma parte del resultado).
+    iva_ventas: Decimal = CERO
+    iva_compras: Decimal = CERO
 
 
 def estado_resultados(datos: DatosMes) -> EstadoResultados:
@@ -192,6 +200,8 @@ def estado_resultados(datos: DatosMes) -> EstadoResultados:
         impuesto_ganancias=ganancias,
         resultado_neto=rai - ganancias,
         compras_otros_egresos=compras_otros_egresos,
+        iva_ventas=datos.iva_ventas,
+        iva_compras=datos.iva_compras,
     )
 
 

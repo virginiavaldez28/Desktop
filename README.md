@@ -3,6 +3,7 @@
 Aplicación web que reemplaza a la planilla `Valpob_Punto_Equilibrio_Rentabilidad.xlsx`.
 
 - El equipo carga los datos del mes en formularios: **Personal y Nómina**, **Registro de Compras**, **Registro de Ventas** y **Apertura de gastos** (alquileres, seguros, leasing, gastos bancarios, etc.).
+- Las facturas de venta y de compra guardan el **neto** y el **IVA** por separado. Todos los reportes de rentabilidad usan el neto (sin IVA); el Estado de Resultados muestra el IVA aparte, como dato informativo (débito, crédito y saldo).
 - La aplicación calcula sola los 5 reportes: **Estado de Resultados**, **Apertura de Costos y Gastos**, **Costos por Servicio**, **Punto de Equilibrio** y **Rentabilidad por Servicio**. Los reportes funcionan para cualquier mes o rango de meses, sin límite de años, y el Estado de Resultados permite comparar dos períodos.
 - Cualquier reporte se descarga en **Excel** o **PDF**.
 - Cada renglón guarda quién lo cargó y quién lo modificó por última vez. El historial completo de cambios está en el botón **Historia** de cada registro.
@@ -101,6 +102,16 @@ docker compose exec web python manage.py createsuperuser
 docker compose cp Valpob_Punto_Equilibrio_Rentabilidad.xlsx web:/tmp/valpob.xlsx
 docker compose exec web python manage.py importar_excel /tmp/valpob.xlsx --usuario <tu usuario>
 ```
+
+Después se completan el neto y el IVA de cada factura de venta con los listados del sistema de facturación (el Excel tenía un solo importe por factura):
+
+```
+docker compose cp Julio_ventas.xlsx web:/tmp/Julio_ventas.xlsx
+docker compose cp agosto_ventas.xlsx web:/tmp/agosto_ventas.xlsx
+docker compose exec web python manage.py completar_iva_ventas /tmp/Julio_ventas.xlsx /tmp/agosto_ventas.xlsx --usuario <tu usuario>
+```
+
+Este paso corrige además la Factura B N° 3-22 de Agosto (Ministerio de Infraestructura): en el Excel figuraba con el IVA incluido ($ 1.428.830,92) y su neto es $ 1.180.852,00.
 
 La carga inicial importa:
 

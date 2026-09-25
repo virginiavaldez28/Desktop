@@ -61,7 +61,7 @@ class ValidacionesTest(TestCase):
     def test_otros_egresos_y_na_van_juntos(self):
         proveedor = Proveedor.objects.create(nombre="Estudio Contable")
         compra = Compra(fecha=date(2026, 9, 1), proveedor=proveedor, tipo_comprobante="Factura A", punto_venta=1,
-                        numero=1, periodo=self.periodo, monto=D("10"),
+                        numero=1, periodo=self.periodo, neto=D("10"),
                         categoria=CategoriaCompra.OTROS_EGRESOS, servicio_asignado=ServicioCompra.GENERAL)
         with self.assertRaises(ValidationError):
             compra.full_clean()
@@ -141,3 +141,24 @@ class RolesTest(TestCase):
         respuesta = self.client.get("/reportes/estado-de-resultados/?comparar=1&desde=2026-07&hasta=2026-07"
                                     "&desde_b=2026-08&hasta_b=2026-08")
         self.assertContains(respuesta, "Variación")
+
+
+class IvaVentasTest(TestCase):
+    def test_neto_e_iva_desde_el_listado_de_facturacion(self):
+        from gestion.catalogos import Servicio
+        from gestion.models import Cliente, Venta
+        from gestion.ventas_origen import Comprobante, completar
+
+        periodo = Periodo.objects.create(anio=2026, mes=8)
+        cliente = Cliente.objects.create(nombre="Ministerio")
+        # Factura B cargada con el IVA incluido, como estaba en el Excel.
+        Venta.objects.create(fecha=date(2026, 8, 1), cliente=cliente, tipo_comprobante="Factura B", punto_venta=3,
+                             numero=22, periodo=periodo, servicio=Servicio.OBRAS_CIVILES, neto=D("1428830.92"))
+        resultado = completar([Comprobante("Factura B", 3, 22, "Ministerio", D("1180852.00"), D("247978.92"))])
+        venta = Venta.objects.get()
+        self.assertEqual((venta.neto, venta.iva, venta.total), (D("1180852.00"), D("247978.92"), D("1428830.92")))
+        self.assertEqual(len(resultado.neto_corregido), 1)
+        # La rentabilidad usa el neto; el IVA queda como memo.
+        mes = calcular_mes(periodo)
+        self.assertEqual(mes.er.total_ventas, D("1180852.00"))
+        self.assertEqual(mes.er.iva_ventas, D("247978.92"))

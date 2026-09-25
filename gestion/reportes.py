@@ -127,6 +127,13 @@ def estado_resultados(periodos):
     ers = [m.er for m in meses]
     columnas = [p.nombre_corto for p in periodos] + ["Acumulado"]
     filas = _filas_estado_resultados(ers)
+    filas.append(_seccion("MEMO: IVA (no forma parte del resultado — todo lo anterior es sin IVA)", len(columnas)))
+    filas.append(Fila("IVA de las ventas (débito fiscal)", _con_acumulado([er.iva_ventas for er in ers])))
+    filas.append(Fila("IVA de las compras (crédito fiscal)", _con_acumulado([er.iva_compras for er in ers])))
+    filas.append(Fila(
+        "Saldo de IVA del período (débito − crédito, estimado)",
+        _con_acumulado([er.iva_ventas - er.iva_compras for er in ers]), "subtotal",
+    ))
     filas.append(_seccion("MEMO: SALDO DE PROVEEDORES (no forma parte del resultado)", len(columnas)))
     saldos = [p.saldo_proveedores for p in periodos]
     filas.append(Fila("Saldo de Proveedores al cierre del mes", saldos + [None]))

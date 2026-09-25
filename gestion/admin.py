@@ -68,6 +68,22 @@ class BaseAdmin(SimpleHistoryAdmin):
         super().save_model(request, obj, form, change)
 
 
+class ImportesConIvaMixin:
+    """Columnas neto / IVA / total para los listados de facturas."""
+
+    @admin.display(description="neto (sin IVA)", ordering="neto")
+    def neto_fmt(self, obj):
+        return moneda(obj.neto)
+
+    @admin.display(description="IVA", ordering="iva")
+    def iva_fmt(self, obj):
+        return moneda(obj.iva)
+
+    @admin.display(description="total con IVA")
+    def total_fmt(self, obj):
+        return moneda(obj.total)
+
+
 class CargaMensualAdmin(BaseAdmin):
     """Registros que pertenecen a un mes: respetan el cierre del mes."""
 
@@ -298,11 +314,11 @@ class LiquidacionNominaAdmin(CargaMensualAdmin):
 
 
 @admin.register(Compra)
-class CompraAdmin(CargaMensualAdmin):
-    total_campo = "monto"
+class CompraAdmin(ImportesConIvaMixin, CargaMensualAdmin):
+    total_campo = "neto"
     list_display = (
         "fecha", "proveedor", "tipo_comprobante", "punto_venta", "numero", "periodo",
-        "categoria", "servicio_asignado", "monto_fmt",
+        "categoria", "servicio_asignado", "neto_fmt", "iva_fmt", "total_fmt",
     )
     list_filter = ("periodo", "categoria", "servicio_asignado")
     search_fields = ("proveedor__nombre", "numero", "observaciones")
@@ -311,20 +327,17 @@ class CompraAdmin(CargaMensualAdmin):
     date_hierarchy = "fecha"
     fieldsets = (
         ("Comprobante", {"fields": ("fecha", "proveedor", "tipo_comprobante", "punto_venta", "numero", "periodo")}),
-        ("Clasificación", {"fields": ("categoria", "servicio_asignado", "monto", "observaciones")}),
+        ("Clasificación", {"fields": ("categoria", "servicio_asignado", "neto", "iva", "observaciones")}),
         ("Auditoría", {"fields": BaseAdmin.campos_auditoria, "classes": ("collapse",)}),
     )
 
-    @admin.display(description="monto", ordering="monto")
-    def monto_fmt(self, obj):
-        return moneda(obj.monto)
-
 
 @admin.register(Venta)
-class VentaAdmin(CargaMensualAdmin):
-    total_campo = "monto"
+class VentaAdmin(ImportesConIvaMixin, CargaMensualAdmin):
+    total_campo = "neto"
     list_display = (
-        "fecha", "cliente", "tipo_comprobante", "punto_venta", "numero", "periodo", "servicio", "monto_fmt",
+        "fecha", "cliente", "tipo_comprobante", "punto_venta", "numero", "periodo", "servicio",
+        "neto_fmt", "iva_fmt", "total_fmt",
     )
     list_filter = ("periodo", "servicio", "tipo_comprobante")
     search_fields = ("cliente__nombre", "numero", "observaciones")
@@ -333,13 +346,9 @@ class VentaAdmin(CargaMensualAdmin):
     date_hierarchy = "fecha"
     fieldsets = (
         ("Comprobante", {"fields": ("fecha", "cliente", "tipo_comprobante", "punto_venta", "numero", "periodo")}),
-        ("Clasificación", {"fields": ("servicio", "monto", "observaciones")}),
+        ("Clasificación", {"fields": ("servicio", "neto", "iva", "observaciones")}),
         ("Auditoría", {"fields": BaseAdmin.campos_auditoria, "classes": ("collapse",)}),
     )
-
-    @admin.display(description="monto", ordering="monto")
-    def monto_fmt(self, obj):
-        return moneda(obj.monto)
 
 
 @admin.register(GastoManual)

@@ -322,7 +322,15 @@ class Compra(Auditable):
                   'Si es de EPP (mamelucos, calzado, etc.), elegí "GENERAL (a prorratear por personal '
                   'afectado)": se reparte según la cantidad de personal de cada servicio en el mes.',
     )
-    monto = campo_monto("monto", help_text="Las notas de crédito se cargan en negativo.")
+    neto = campo_monto(
+        "neto (sin IVA)",
+        help_text="Importe sin IVA: es el que se usa en los reportes de rentabilidad. "
+                  "Las notas de crédito se cargan en negativo.",
+    )
+    iva = campo_monto(
+        "IVA", default=Decimal("0"),
+        help_text="IVA discriminado en la factura (0 en facturas C). En notas de crédito, en negativo.",
+    )
     observaciones = models.TextField(blank=True)
 
     history = HistoricalRecords()
@@ -339,6 +347,11 @@ class Compra(Auditable):
 
     def __str__(self):
         return f"{self.tipo_comprobante} {self.punto_venta:05d}-{self.numero:08d} — {self.proveedor}"
+
+    @property
+    def total(self):
+        """Total de la factura, con IVA."""
+        return self.neto + self.iva
 
     def clean(self):
         es_otros_egresos = self.categoria == CategoriaCompra.OTROS_EGRESOS
@@ -366,7 +379,15 @@ class Venta(Auditable):
     numero = models.PositiveBigIntegerField("N° de factura")
     periodo = models.ForeignKey(Periodo, verbose_name="mes", on_delete=models.PROTECT, related_name="ventas")
     servicio = models.CharField(max_length=20, choices=Servicio.choices)
-    monto = campo_monto("monto", help_text="Las notas de crédito se cargan en negativo.")
+    neto = campo_monto(
+        "neto (sin IVA)",
+        help_text="Importe sin IVA: es el que se usa en los reportes de rentabilidad. "
+                  "Las notas de crédito se cargan en negativo.",
+    )
+    iva = campo_monto(
+        "IVA", default=Decimal("0"),
+        help_text="IVA discriminado en la factura (0 en facturas C). En notas de crédito, en negativo.",
+    )
     observaciones = models.TextField(blank=True)
 
     history = HistoricalRecords()
@@ -381,6 +402,11 @@ class Venta(Auditable):
 
     def __str__(self):
         return f"{self.tipo_comprobante} {self.punto_venta:05d}-{self.numero:08d} — {self.cliente}"
+
+    @property
+    def total(self):
+        """Total de la factura, con IVA."""
+        return self.neto + self.iva
 
 
 class GastoManual(Auditable):
