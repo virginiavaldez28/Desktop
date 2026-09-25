@@ -14,7 +14,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .formato import moneda, numero, porcentaje
-from .reportes import ENTERO, MONEDA, PORCENTAJE, TEXTO
+from .reportes import DOTACION, ENTERO, MONEDA, PORCENTAJE, TEXTO
 
 EMPRESA = "Grupo Valpob S.R.L."
 
@@ -27,6 +27,8 @@ def texto_celda(tabla, fila, indice, valor):
         return porcentaje(valor)
     if formato == ENTERO:
         return numero(valor, 0)
+    if formato == DOTACION:
+        return numero(valor, 1)
     if formato == TEXTO or not isinstance(valor, (int, float, Decimal)):
         return str(valor)
     return moneda(valor)
@@ -76,6 +78,8 @@ def a_excel(reporte):
                     celda.number_format = "0.0%"
                 elif formato == ENTERO:
                     celda.number_format = "0"
+                elif formato == DOTACION:
+                    celda.number_format = "0.0"
                 elif formato == MONEDA:
                     celda.number_format = '#,##0.00;[Red]-#,##0.00'
             if fila.estilo == "seccion":

@@ -82,6 +82,7 @@ class ServicioCompra(models.TextChoices):
     CERCOS = Servicio.CERCOS.value, Servicio.CERCOS.label
     METALURGICA = Servicio.METALURGICA.value, Servicio.METALURGICA.label
     GENERAL = "GENERAL", "GENERAL (a prorratear por ventas)"
+    POR_PERSONAL = "PERSONAL", "GENERAL (a prorratear por personal afectado) — ej. EPP"
     NO_APLICA = "NA", "N/A — Otros Egresos (no aplica)"
 
 

@@ -318,8 +318,9 @@ class Compra(Auditable):
     categoria = models.CharField("categoría", max_length=20, choices=CategoriaCompra.choices)
     servicio_asignado = models.CharField(
         "servicio asignado", max_length=20, choices=ServicioCompra.choices,
-        help_text='Si la factura es de varios servicios, o es de EPP (mamelucos, calzado, etc.), '
-                  'elegí "GENERAL": se reparte según el % de ventas de cada servicio en el mes.',
+        help_text='Si la factura es de varios servicios, elegí "GENERAL (a prorratear por ventas)". '
+                  'Si es de EPP (mamelucos, calzado, etc.), elegí "GENERAL (a prorratear por personal '
+                  'afectado)": se reparte según la cantidad de personal de cada servicio en el mes.',
     )
     monto = campo_monto("monto", help_text="Las notas de crédito se cargan en negativo.")
     observaciones = models.TextField(blank=True)

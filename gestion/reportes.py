@@ -20,7 +20,7 @@ from .calculos import (
 from .catalogos import SERVICIOS, CategoriaCompra, ModoAsignacion, RubroGasto
 from .models import GastoManual
 
-MONEDA, PORCENTAJE, TEXTO, ENTERO = "moneda", "porcentaje", "texto", "entero"
+MONEDA, PORCENTAJE, TEXTO, ENTERO, DOTACION = "moneda", "porcentaje", "texto", "entero", "dotacion"
 
 
 @dataclass
@@ -303,6 +303,14 @@ def costos_por_servicio(periodos):
     ]
     for clave, etiqueta in FILAS_COSTO_VARIABLE:
         filas.append(fila(etiqueta, cxs.costos_variables[clave], cxs.total_fila(clave)))
+    filas.append(fila(
+        "Personal afectado (personas equivalentes" + (", promedio mensual)" if len(periodos) > 1 else ")"),
+        cxs.dotacion, sum(cxs.dotacion.values(), CERO), "detalle", DOTACION,
+    ))
+    filas.append(fila(
+        "% de personal afectado (reparto de EPP)", cxs.porcentaje_dotacion,
+        sum(cxs.porcentaje_dotacion.values(), CERO), "detalle", PORCENTAJE,
+    ))
     filas += [
         fila("Total Costos Variables", cxs.total_costos_variables, cxs.total_cv, "subtotal"),
         fila("MARGEN DE CONTRIBUCIÓN ($)", cxs.margen_contribucion, cxs.total_mc, "total"),
@@ -326,7 +334,8 @@ def costos_por_servicio(periodos):
             "Costos por Servicio", columnas, filas,
             nota="Mano de Obra Directa: Soporte PAE y Cercos suman su cuadrilla fija; el resto suma el personal "
                  "asignado directo a cada servicio más su parte del Pool Operativo según ventas. Las compras "
-                 "GENERAL y los costos fijos se reparten con el % de Asignación. La suma del Resultado Neto por "
+                 "GENERAL y los costos fijos se reparten con el % de Asignación; las compras de EPP, según el "
+                 "personal afectado a cada servicio. La suma del Resultado Neto por "
                  "Servicio es igual al Resultado Operativo del Estado de Resultados.",
         )],
         advertencias=cxs.advertencias,

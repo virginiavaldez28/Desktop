@@ -67,6 +67,9 @@ class DatosMes:
     ventas: dict = field(default_factory=_por_servicio)
     # Mano de obra directa ($ Asignado al Servicio, ¿MOD? = Sí) por Servicio Asignado (incluye "POOL").
     mano_obra: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
+    # Personas equivalentes con ¿MOD? = Sí, por Servicio Asignado (incluye "POOL").
+    # Una persona al 50% en un servicio cuenta 0,5.
+    dotacion: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
     # Nómina con ¿MOD? = No (estructura de Administración).
     sueldos_administracion: Decimal = CERO
     # Compras por (categoría, servicio asignado).
@@ -91,6 +94,7 @@ class DatosMes:
         for renglon in LiquidacionNomina.objects.filter(periodo=periodo):
             if renglon.mano_obra_directa:
                 datos.mano_obra[renglon.asignacion] += renglon.asignado_servicio
+                datos.dotacion[renglon.asignacion] += renglon.porcentaje_afectacion / CIEN
             else:
                 datos.sueldos_administracion += renglon.asignado_servicio
 
@@ -222,6 +226,10 @@ class CostosPorServicio:
     costos_fijos_asignados: dict
     resultado_neto: dict
     advertencias: list = field(default_factory=list)
+    # Personal afectado (personas equivalentes) y su proporción, para las compras
+    # "a prorratear por personal afectado" (EPP).
+    dotacion: dict = field(default_factory=lambda: {s: CERO for s in SERVICIOS})
+    porcentaje_dotacion: dict = field(default_factory=lambda: {s: CERO for s in SERVICIOS})
 
     # --- totales y porcentajes derivados -------------------------------------
     @property
@@ -262,6 +270,22 @@ def porcentaje_asignacion(datos: DatosMes):
     return {s: dividir(datos.ventas[s], total) for s in SERVICIOS}
 
 
+def dotacion_por_servicio(datos: DatosMes):
+    """Personal afectado a cada servicio (personas equivalentes, sin Administración).
+
+    Las cuadrillas fijas y las personas asignadas directo a un servicio cuentan en
+    ese servicio; las del Pool Operativo se reparten entre los 7 servicios del pool
+    según sus ventas del mes, igual que su costo de mano de obra (regla 4).
+    """
+    ventas_pool = sum((datos.ventas[s] for s in SERVICIOS_POOL), CERO)
+    pool = datos.dotacion[AsignacionPersonal.POOL]
+    return {
+        s: datos.dotacion[s.value]
+        + (dividir(pool * datos.ventas[s], ventas_pool) if s in SERVICIOS_POOL else CERO)
+        for s in SERVICIOS
+    }
+
+
 def costos_por_servicio(datos: DatosMes, er: EstadoResultados = None) -> CostosPorServicio:
     er = er or estado_resultados(datos)
     advertencias = []
@@ -292,16 +316,27 @@ def costos_por_servicio(datos: DatosMes, er: EstadoResultados = None) -> CostosP
             "ese costo no se pudo repartir y no aparece en Costos por Servicio (sí en el Estado de Resultados)."
         )
 
-    # Reglas 1 y 5: compras directas + la parte de las facturas GENERAL según el % de asignación.
+    # Reglas 1 y 5: compras directas + la parte de las facturas GENERAL según el % de asignación
+    # + la parte de las facturas a prorratear por personal afectado (EPP) según la dotación.
+    dotacion = dotacion_por_servicio(datos)
+    total_dotacion = sum(dotacion.values(), CERO)
+    pct_dotacion = {s: dividir(dotacion[s], total_dotacion) for s in SERVICIOS}
     costos_variables = {"mano_obra": mano_obra}
     for categoria in CATEGORIAS_COSTO_DIRECTO:
         general = datos.compras[(categoria, ServicioCompra.GENERAL.value)]
+        por_personal = datos.compras[(categoria, ServicioCompra.POR_PERSONAL.value)]
         costos_variables[categoria] = {
-            s: datos.compras[(categoria, s.value)] + general * pct[s] for s in SERVICIOS
+            s: datos.compras[(categoria, s.value)] + general * pct[s] + por_personal * pct_dotacion[s]
+            for s in SERVICIOS
         }
         if general and not any(pct.values()):
             advertencias.append(
                 f"Hay compras GENERAL de {categoria.label} pero no hay ventas en el mes para prorratearlas."
+            )
+        if por_personal and not total_dotacion:
+            advertencias.append(
+                f"Hay compras de {categoria.label} a prorratear por personal afectado, pero el mes no tiene "
+                "personal de mano de obra directa cargado en Personal y Nómina: no se pudieron repartir."
             )
 
     total_cv = {s: sum((costos_variables[f][s] for f, _ in FILAS_COSTO_VARIABLE), CERO) for s in SERVICIOS}
@@ -327,6 +362,8 @@ def costos_por_servicio(datos: DatosMes, er: EstadoResultados = None) -> CostosP
         costos_fijos_asignados=asignados,
         resultado_neto={s: margen[s] - asignados[s] for s in SERVICIOS},
         advertencias=advertencias,
+        dotacion=dotacion,
+        porcentaje_dotacion=pct_dotacion,
     )
 
 
@@ -359,6 +396,9 @@ def sumar_costos_por_servicio(meses):
         costos_fijos_asignados=asignados,
         resultado_neto=sumar("resultado_neto"),
         advertencias=[a for m in meses for a in m.advertencias],
+        # En un acumulado, la dotación es el promedio mensual.
+        dotacion={s: v / len(meses) for s, v in sumar("dotacion").items()},
+        porcentaje_dotacion={s: dividir(v, sum(sumar("dotacion").values(), CERO)) for s, v in sumar("dotacion").items()},
     )
 
 

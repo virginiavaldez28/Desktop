@@ -165,3 +165,25 @@ class RankingTest(SimpleTestCase):
     def test_empates_comparten_puesto(self):
         self.assertEqual(ranking({"a": D("0.5"), "b": D("0.2"), "c": D("0.5"), "d": D("-1")}),
                          {"a": 1, "c": 1, "b": 3, "d": 4})
+
+
+class EppPorPersonalTest(SimpleTestCase):
+    def test_epp_se_reparte_por_personal_afectado(self):
+        datos = datos_base()  # ventas pool: sólo Hidrolavadoras (300)
+        datos.dotacion[AsignacionPersonal.SOPORTE_PAE.value] = D("6")
+        datos.dotacion[AsignacionPersonal.CERCOS.value] = D("2")
+        datos.dotacion[AsignacionPersonal.POOL.value] = D("2")  # va todo a Hidrolavadoras
+        datos.compras[(CategoriaCompra.MATERIALES.value, ServicioCompra.POR_PERSONAL.value)] = D("1000")
+        cxs = costos_por_servicio(datos)
+        materiales = cxs.costos_variables[CategoriaCompra.MATERIALES]
+        self.assertEqual(materiales[S.SOPORTE_PAE], D("600"))
+        self.assertEqual(materiales[S.CERCOS], D("200"))
+        self.assertEqual(materiales[S.HIDROLAVADORAS], D("200"))
+        self.assertEqual(cxs.dotacion[S.HIDROLAVADORAS], D("2"))
+        # En el Estado de Resultados suma a Materiales como cualquier compra.
+        self.assertEqual(estado_resultados(datos).materiales, D("1000"))
+
+    def test_epp_sin_personal_avisa(self):
+        datos = datos_base()
+        datos.compras[(CategoriaCompra.MATERIALES.value, ServicioCompra.POR_PERSONAL.value)] = D("1000")
+        self.assertTrue(costos_por_servicio(datos).advertencias)
