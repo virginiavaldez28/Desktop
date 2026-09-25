@@ -38,7 +38,7 @@ Para crear un usuario: *Carga de datos → Usuarios → Agregar*, y en **Grupos*
 
 1. **Compras GENERAL.** Se reparten entre los 9 servicios con el % de asignación del mes.
    - **EPP** (mamelucos, calzado, etc.): se carga con Categoría *Materiales e Insumos* y Servicio Asignado *GENERAL (a prorratear por personal afectado)*. Se reparte según la cantidad de personal de cada servicio en el mes, tomada de Personal y Nómina: una persona al 50% cuenta 0,5, Administración no cuenta, y el Pool Operativo se reparte entre sus 7 servicios según las ventas, igual que su costo.
-2. **Otros Egresos.** No entran a Costos por Servicio. Van directo a *Otros Gastos Operativos* del Estado de Resultados.
+2. **Gastos operativos en Compras.** Las facturas con categoría *Otros Egresos* o *Gasto Operativo — Servicios / Seguros / Alquileres / Impuestos y Tasas* no entran a Costos por Servicio: van directo a su renglón de Gastos Operativos del Estado de Resultados (Otros Egresos va a *Otros Gastos Operativos*).
 3. **% de asignación.** En modo Automático es Ventas del servicio ÷ Ventas totales del mes; en modo Manual, el % cargado. Se usa para las compras GENERAL y para repartir los costos fijos.
 4. **Mano de obra.**
    - Soporte a Producción PAE y Cercos suman su cuadrilla fija.
@@ -111,7 +111,14 @@ docker compose cp agosto_ventas.xlsx web:/tmp/agosto_ventas.xlsx
 docker compose exec web python manage.py completar_iva_ventas /tmp/Julio_ventas.xlsx /tmp/agosto_ventas.xlsx --usuario <tu usuario>
 ```
 
-Este paso corrige además la Factura B N° 3-22 de Agosto (Ministerio de Infraestructura): en el Excel figuraba con el IVA incluido ($ 1.428.830,92) y su neto es $ 1.180.852,00.
+Las compras de un mes se cargan desde la planilla de revisión (la que tiene las columnas "Categoría final" y "Servicio Asignado final"):
+
+```
+docker compose cp Compras_Julio_2026_final.xlsx web:/tmp/compras.xlsx
+docker compose exec web python manage.py importar_compras /tmp/compras.xlsx --anio 2026 --mes 7 --usuario <tu usuario>
+```
+
+El paso de ventas corrige además la Factura B N° 3-22 de Agosto (Ministerio de Infraestructura): en el Excel figuraba con el IVA incluido ($ 1.428.830,92) y su neto es $ 1.180.852,00.
 
 La carga inicial importa:
 

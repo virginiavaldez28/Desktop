@@ -16,6 +16,7 @@ from django.db.models import Sum
 from simple_history.models import HistoricalRecords
 
 from .catalogos import (
+    CATEGORIAS_GASTO_OPERATIVO,
     NOMBRE_MES,
     SERVICIOS,
     AsignacionPersonal,
@@ -354,16 +355,17 @@ class Compra(Auditable):
         return self.neto + self.iva
 
     def clean(self):
-        es_otros_egresos = self.categoria == CategoriaCompra.OTROS_EGRESOS
+        es_gasto_operativo = self.categoria in CATEGORIAS_GASTO_OPERATIVO
         es_no_aplica = self.servicio_asignado == ServicioCompra.NO_APLICA
-        if es_otros_egresos and not es_no_aplica:
+        if es_gasto_operativo and not es_no_aplica:
             raise ValidationError({
-                "servicio_asignado": 'Con Categoría "Otros Egresos" el Servicio Asignado tiene que ser "N/A — Otros Egresos".'
+                "servicio_asignado": 'Los gastos operativos ("Otros Egresos" y "Gasto Operativo — …") no se asignan a '
+                'un servicio: el Servicio Asignado tiene que ser "N/A — Otros Egresos".'
             })
-        if es_no_aplica and not es_otros_egresos:
+        if es_no_aplica and not es_gasto_operativo:
             raise ValidationError({
-                "servicio_asignado": '"N/A — Otros Egresos" sólo corresponde con Categoría "Otros Egresos". '
-                'Si la factura es de varios servicios, elegí "GENERAL (a prorratear por ventas)".'
+                "servicio_asignado": '"N/A — Otros Egresos" sólo corresponde a gastos operativos ("Otros Egresos" o '
+                '"Gasto Operativo — …"). Si la factura es de varios servicios, elegí "GENERAL (a prorratear por ventas)".'
             })
 
 

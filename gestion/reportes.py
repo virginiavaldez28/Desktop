@@ -247,9 +247,12 @@ def apertura(periodos):
     for rubro in RUBROS_GASTO_OPERATIVO:
         filas.append(Fila(rubro.label, [None] * (n + 1), "rubro"))
         renglones = []
-        if rubro == RubroGasto.OTROS_GASTOS_OPERATIVOS:
+        if rubro == RubroGasto.OTROS_GASTOS_OPERATIVOS or any(
+            m.er.compras_gastos_operativos.get(rubro) for m in meses
+        ):
             renglones.append(automatica(
-                'Automático — "Registro de Compras" (Categoría = Otros Egresos)', lambda m: m.er.compras_otros_egresos,
+                'Automático — facturas de "Registro de Compras"',
+                lambda m, rubro=rubro: m.er.compras_gastos_operativos.get(rubro, CERO),
             ))
         renglones += manuales(rubro)
         if not renglones:

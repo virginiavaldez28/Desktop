@@ -18,6 +18,7 @@ from decimal import Decimal
 
 from .catalogos import (
     CATEGORIAS_COSTO_DIRECTO,
+    RUBRO_DE_CATEGORIA_GASTO,
     GRUPO_DE_RUBRO,
     SERVICIOS,
     SERVICIOS_POOL,
@@ -148,6 +149,8 @@ class EstadoResultados:
     resultado_neto: Decimal
     # Parte de "Otros Gastos Operativos" que viene de Registro de Compras.
     compras_otros_egresos: Decimal = CERO
+    # Parte de cada renglón de Gastos Operativos que viene de Registro de Compras.
+    compras_gastos_operativos: dict = field(default_factory=dict)
     # Memo de IVA (no forma parte del resultado).
     iva_ventas: Decimal = CERO
     iva_compras: Decimal = CERO
@@ -163,10 +166,15 @@ def estado_resultados(datos: DatosMes) -> EstadoResultados:
     total_csp = mano_obra_directa + materiales + combustible + mantenimiento + otros_directos
     utilidad_bruta = total_ventas - total_csp
 
-    # Regla 2: las compras "Otros Egresos" van directo a Otros Gastos Operativos.
-    compras_otros_egresos = datos.compras_categoria(CategoriaCompra.OTROS_EGRESOS)
+    # Regla 2: las compras que son gasto operativo ("Otros Egresos" y "Gasto Operativo — …")
+    # van directo a su renglón de Gastos Operativos, sin pasar por Costos por Servicio.
     gastos_operativos = {r: datos.gastos[r] for r in RUBROS_GASTO_OPERATIVO}
-    gastos_operativos[RubroGasto.OTROS_GASTOS_OPERATIVOS] += compras_otros_egresos
+    compras_gastos_operativos = {r: CERO for r in RUBROS_GASTO_OPERATIVO}
+    for categoria, rubro in RUBRO_DE_CATEGORIA_GASTO.items():
+        compras_gastos_operativos[rubro] += datos.compras_categoria(categoria)
+    for rubro, monto in compras_gastos_operativos.items():
+        gastos_operativos[rubro] += monto
+    compras_otros_egresos = compras_gastos_operativos[RubroGasto.OTROS_GASTOS_OPERATIVOS]
     total_go = datos.sueldos_administracion + sum(gastos_operativos.values(), CERO)
 
     gastos_bancarios = {r: datos.gastos[r] for r in RUBROS_GASTO_BANCARIO}
@@ -200,6 +208,7 @@ def estado_resultados(datos: DatosMes) -> EstadoResultados:
         impuesto_ganancias=ganancias,
         resultado_neto=rai - ganancias,
         compras_otros_egresos=compras_otros_egresos,
+        compras_gastos_operativos=compras_gastos_operativos,
         iva_ventas=datos.iva_ventas,
         iva_compras=datos.iva_compras,
     )

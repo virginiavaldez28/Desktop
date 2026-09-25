@@ -58,6 +58,11 @@ class CategoriaCompra(models.TextChoices):
     MANTENIMIENTO_EQUIPOS = "MANT_EQUIPOS", "Mantenimiento de Equipos"
     OTROS_COSTOS_DIRECTOS = "OTROS_DIRECTOS", "Otros Costos Directos"
     OTROS_EGRESOS = "OTROS_EGRESOS", "Otros Egresos (no corresponde a Costos por Servicio)"
+    # Gastos de estructura que tienen su propio renglón en Gastos Operativos.
+    GO_SERVICIOS = "GO_SERVICIOS", "Gasto Operativo — Servicios (luz, gas, agua, teléfono, internet, alarma)"
+    GO_SEGUROS = "GO_SEGUROS", "Gasto Operativo — Seguros"
+    GO_ALQUILERES = "GO_ALQUILERES", "Gasto Operativo — Alquileres"
+    GO_IMPUESTOS = "GO_IMPUESTOS", "Gasto Operativo — Impuestos y Tasas"
 
 
 # Categorías que son costo de prestar los servicios (entran a Costos por Servicio).
@@ -132,6 +137,18 @@ GRUPO_DE_RUBRO = {
 class ModoAsignacion(models.TextChoices):
     AUTOMATICO = "AUTO", "Automático (por Ventas)"
     MANUAL = "MANUAL", "Manual"
+
+
+# Categorías de compra que son gasto operativo (no entran a Costos por Servicio),
+# y el renglón de Gastos Operativos del Estado de Resultados al que van.
+RUBRO_DE_CATEGORIA_GASTO = {
+    CategoriaCompra.GO_SERVICIOS: RubroGasto.SERVICIOS,
+    CategoriaCompra.GO_SEGUROS: RubroGasto.SEGUROS,
+    CategoriaCompra.GO_ALQUILERES: RubroGasto.ALQUILERES,
+    CategoriaCompra.GO_IMPUESTOS: RubroGasto.IMPUESTOS_TASAS,
+    CategoriaCompra.OTROS_EGRESOS: RubroGasto.OTROS_GASTOS_OPERATIVOS,
+}
+CATEGORIAS_GASTO_OPERATIVO = list(RUBRO_DE_CATEGORIA_GASTO)
 
 
 MESES = [

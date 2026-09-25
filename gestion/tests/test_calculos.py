@@ -187,3 +187,21 @@ class EppPorPersonalTest(SimpleTestCase):
         datos = datos_base()
         datos.compras[(CategoriaCompra.MATERIALES.value, ServicioCompra.POR_PERSONAL.value)] = D("1000")
         self.assertTrue(costos_por_servicio(datos).advertencias)
+
+
+class ComprasGastoOperativoTest(SimpleTestCase):
+    def test_cada_categoria_va_a_su_renglon_de_gastos_operativos(self):
+        datos = datos_base()
+        na = ServicioCompra.NO_APLICA.value
+        datos.compras[(CategoriaCompra.GO_SERVICIOS.value, na)] = D("40")
+        datos.compras[(CategoriaCompra.GO_SEGUROS.value, na)] = D("7")
+        datos.compras[(CategoriaCompra.OTROS_EGRESOS.value, na)] = D("3")
+        datos.gastos[RubroGasto.SERVICIOS] = D("10")  # también se puede cargar a mano en Apertura
+        er = estado_resultados(datos)
+        self.assertEqual(er.gastos_operativos[RubroGasto.SERVICIOS], D("50"))
+        self.assertEqual(er.gastos_operativos[RubroGasto.SEGUROS], D("7"))
+        self.assertEqual(er.gastos_operativos[RubroGasto.OTROS_GASTOS_OPERATIVOS], D("3"))
+        self.assertEqual(er.total_costo_servicios, 0)
+        cxs = costos_por_servicio(datos, er)
+        self.assertEqual(cxs.total_cv, 0)
+        self.assertEqual(cxs.costos_fijos, D("60"))
