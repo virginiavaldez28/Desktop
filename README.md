@@ -36,6 +36,7 @@ Para crear un usuario: *Carga de datos → Usuarios → Agregar*, y en **Grupos*
 ## 2. Reglas de cálculo (iguales a las del Excel)
 
 1. **Compras GENERAL.** Se reparten entre los 9 servicios con el % de asignación del mes.
+   - **EPP** (mamelucos, calzado, etc.): se carga con Categoría *Materiales e Insumos* y Servicio Asignado *GENERAL*, así se reparte según el % de ventas de cada servicio.
 2. **Otros Egresos.** No entran a Costos por Servicio. Van directo a *Otros Gastos Operativos* del Estado de Resultados.
 3. **% de asignación.** En modo Automático es Ventas del servicio ÷ Ventas totales del mes; en modo Manual, el % cargado. Se usa para las compras GENERAL y para repartir los costos fijos.
 4. **Mano de obra.**
