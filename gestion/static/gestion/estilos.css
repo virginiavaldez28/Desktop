@@ -148,3 +148,4 @@ h2 { font-size: 18px; margin: 24px 0 8px; }
   .barra, .filtros, .acciones { display: none; }
   body { background: #fff; }
 }
+.comparar[hidden] { display: none; }
