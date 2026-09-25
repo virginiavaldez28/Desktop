@@ -1,0 +1,75 @@
+{% extends "gestion/base.html" %}
+{% block titulo %}{{ reporte.titulo|default:"Reportes" }}{% endblock %}
+{% block contenido %}
+  {% if sin_datos %}
+    <h1>Reportes</h1>
+    <p class="subtitulo">Todavía no hay meses cargados.</p>
+  {% else %}
+    <h1>{{ reporte.titulo }}</h1>
+    <p class="subtitulo">{{ reporte.subtitulo }} · Cifras en pesos argentinos</p>
+
+    <form class="panel filtros" method="get">
+      <label>Desde
+        <select name="desde">
+          {% for p in periodos %}<option value="{{ p.clave }}" {% if p.clave == desde %}selected{% endif %}>{{ p }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Hasta
+        <select name="hasta">
+          {% for p in periodos %}<option value="{{ p.clave }}" {% if p.clave == hasta %}selected{% endif %}>{{ p }}</option>{% endfor %}
+        </select>
+      </label>
+      {% if nombre == "estado-de-resultados" %}
+        <label style="flex-direction:row;align-items:center;gap:6px;">
+          <input type="checkbox" name="comparar" value="1" {% if comparar %}checked{% endif %}
+                 onchange="document.getElementById('periodo-b').hidden = !this.checked">
+          Comparar con otro período
+        </label>
+        <div class="comparar" id="periodo-b" {% if not comparar %}hidden{% endif %}>
+          <label>Comparar con: desde
+            <select name="desde_b">
+              {% for p in periodos %}<option value="{{ p.clave }}" {% if p.clave == desde_b %}selected{% endif %}>{{ p }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>hasta
+            <select name="hasta_b">
+              {% for p in periodos %}<option value="{{ p.clave }}" {% if p.clave == hasta_b %}selected{% endif %}>{{ p }}</option>{% endfor %}
+            </select>
+          </label>
+        </div>
+      {% endif %}
+      <button type="submit">Ver</button>
+      <div class="acciones">
+        <a class="boton" href="?{{ consulta }}{% if consulta %}&{% endif %}formato=xlsx">Descargar Excel</a>
+        <a class="boton" href="?{{ consulta }}{% if consulta %}&{% endif %}formato=pdf">Descargar PDF</a>
+      </div>
+    </form>
+    {% if not reporte.varios_meses and not comparar %}
+      <p class="nota" style="margin:-8px 2px 16px">Elegí el mismo mes en "Desde" y "Hasta" para ver un mes; si elegís un rango, se muestra el acumulado.</p>
+    {% endif %}
+
+    {% for advertencia in reporte.advertencias %}<div class="aviso">{{ advertencia }}</div>{% endfor %}
+
+    {% if grafico %}{{ grafico }}{% endif %}
+
+    {% for t in tablas %}
+      {% if tablas|length > 1 %}<h2>{{ t.tabla.titulo }}</h2>{% endif %}
+      <div class="contenedor-tabla">
+        <table class="reporte">
+          <thead>
+            <tr><th>{{ t.tabla.primera_columna }}</th>{% for c in t.tabla.columnas %}<th>{{ c }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for f in t.filas %}
+              <tr class="{{ f.fila.estilo }}">
+                <td>{{ f.fila.etiqueta }}</td>
+                {% for c in f.celdas %}<td {% if c.negativo %}class="negativo"{% endif %}>{{ c.texto }}</td>{% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if t.tabla.nota %}<p class="nota">{{ t.tabla.nota }}</p>{% endif %}
+    {% endfor %}
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "gestion/base.html" %}
+{% load formato %}
+{% block titulo %}Inicio{% endblock %}
+{% block contenido %}
+  <h1>Hola, {{ user.first_name|default:user.username }}</h1>
+  {% if ultimo %}
+    <p class="subtitulo">Resumen del último mes cargado: <strong>{{ ultimo.periodo }}</strong></p>
+    <div class="tarjetas">
+      <div class="tarjeta"><div class="etiqueta">Ventas</div><div class="valor">{{ ultimo.er.total_ventas|moneda:0 }}</div></div>
+      <div class="tarjeta"><div class="etiqueta">Utilidad bruta</div><div class="valor">{{ ultimo.er.utilidad_bruta|moneda:0 }}</div></div>
+      <div class="tarjeta">
+        <div class="etiqueta">Resultado neto</div>
+        <div class="valor">{{ ultimo.er.resultado_neto|moneda:0 }}</div>
+        {% if margen_neto is not None %}<div class="detalle">{{ margen_neto|porcentaje }} de las ventas</div>{% endif %}
+      </div>
+      <div class="tarjeta">
+        <div class="etiqueta">Punto de equilibrio</div>
+        <div class="valor">{{ pe.punto_equilibrio|moneda:0 }}</div>
+        <div class="detalle">{{ pe.estado }}{% if pe.alcanzable %} · margen de seguridad {{ pe.margen_seguridad|porcentaje }}{% endif %}</div>
+      </div>
+    </div>
+    {% if grafico %}{{ grafico }}{% endif %}
+  {% elif ve_reportes %}
+    <p class="subtitulo">Todavía no hay meses cargados. Empezá por "Carga de datos" → "Períodos (meses)".</p>
+  {% endif %}
+
+  {% if ve_reportes %}
+    <h2>Reportes</h2>
+    <div class="enlaces">
+      <a href="{% url 'reporte' 'estado-de-resultados' %}">Estado de Resultados<span>Mensual, acumulado y comparativo entre períodos</span></a>
+      <a href="{% url 'reporte' 'apertura' %}">Apertura de Costos y Gastos<span>Detalle de cada categoría mes a mes</span></a>
+      <a href="{% url 'reporte' 'costos-por-servicio' %}">Costos por Servicio<span>Margen y resultado de las 9 líneas</span></a>
+      <a href="{% url 'reporte' 'punto-de-equilibrio' %}">Punto de Equilibrio<span>General y por línea de servicio</span></a>
+      <a href="{% url 'reporte' 'rentabilidad' %}">Rentabilidad por Servicio<span>Ranking y evolución</span></a>
+    </div>
+  {% endif %}
+
+  <h2>Carga de datos</h2>
+  <div class="enlaces">
+    {% if perms.gestion.view_liquidacionnomina %}<a href="{% url 'admin:gestion_liquidacionnomina_changelist' %}">Personal y Nómina<span>Un renglón por persona y por mes</span></a>{% endif %}
+    {% if perms.gestion.view_compra %}<a href="{% url 'admin:gestion_compra_changelist' %}">Registro de Compras<span>Un renglón por factura de compra</span></a>{% endif %}
+    {% if perms.gestion.view_venta %}<a href="{% url 'admin:gestion_venta_changelist' %}">Registro de Ventas<span>Un renglón por factura de venta</span></a>{% endif %}
+    {% if perms.gestion.view_gastomanual %}<a href="{% url 'admin:gestion_gastomanual_changelist' %}">Apertura de gastos (carga manual)<span>Alquileres, seguros, leasing, gastos bancarios…</span></a>{% endif %}
+    {% if perms.gestion.view_periodo %}<a href="{% url 'admin:gestion_periodo_changelist' %}">Períodos (meses)<span>Abrir un mes, % de asignación, cierre</span></a>{% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+db.sqlite3
+staticfiles/
+media/
+backups/
+# Los Excel con datos reales (sueldos, CUIL) nunca se suben al repositorio.
+*.xlsx
+*.xls
