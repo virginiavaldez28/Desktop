@@ -319,7 +319,9 @@ class Compra(Auditable):
     categoria = models.CharField("categoría", max_length=20, choices=CategoriaCompra.choices)
     servicio_asignado = models.CharField(
         "servicio asignado", max_length=20, choices=ServicioCompra.choices,
-        help_text='Si la factura es de varios servicios, elegí "GENERAL (a prorratear por ventas)". '
+        help_text='Si sabés cómo se reparte la factura entre servicios (ej. 40% PAE y 60% Módulos), cargala en un '
+                  'renglón por servicio con su importe. Si es de varios servicios sin un reparto conocido, elegí '
+                  '"GENERAL (a prorratear por ventas)". '
                   'Si es de EPP (mamelucos, calzado, etc.), elegí "GENERAL (a prorratear por personal '
                   'afectado)": se reparte según la cantidad de personal de cada servicio en el mes.',
     )
@@ -341,8 +343,11 @@ class Compra(Auditable):
         verbose_name_plural = "registro de compras"
         ordering = ["-fecha", "-id"]
         constraints = [
+            # Una misma factura puede repartirse entre servicios (un renglón por servicio),
+            # pero no puede cargarse dos veces para el mismo servicio.
             models.UniqueConstraint(
-                fields=["proveedor", "tipo_comprobante", "punto_venta", "numero"], name="compra_unica",
+                fields=["proveedor", "tipo_comprobante", "punto_venta", "numero", "servicio_asignado"],
+                name="compra_unica",
             ),
         ]
 

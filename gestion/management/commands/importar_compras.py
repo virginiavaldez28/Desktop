@@ -105,6 +105,6 @@ class Command(BaseCommand):
         por_categoria = Counter()
         for c in compras:
             por_categoria[c["categoria"].label] += c["neto"]
-        self.stdout.write(self.style.SUCCESS(f"{periodo}: {len(compras)} facturas cargadas, {excluidas} excluidas."))
+        self.stdout.write(self.style.SUCCESS(f"{periodo}: {len(compras)} renglones cargados, {excluidas} facturas excluidas."))
         for categoria, total in por_categoria.most_common():
             self.stdout.write(f"  {categoria}: {moneda(total)} (sin IVA)")
