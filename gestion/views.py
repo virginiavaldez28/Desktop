@@ -18,9 +18,10 @@ MENU_REPORTES = [
     ("costos-por-servicio", "Costos por Servicio"),
     ("punto-de-equilibrio", "Punto de Equilibrio"),
     ("rentabilidad", "Rentabilidad por Servicio"),
+    ("flujo-personal", "Flujo de fondos — Personal"),
 ]
 # Cuántos meses se muestran si no se elige un rango.
-MESES_POR_DEFECTO = {"estado-de-resultados": 6, "apertura": 6}
+MESES_POR_DEFECTO = {"estado-de-resultados": 6, "apertura": 6, "flujo-personal": 6}
 
 
 def _periodo(clave):
@@ -42,7 +43,8 @@ def _rango(request, sufijo, todos, cantidad_por_defecto):
         desde = anteriores[-cantidad_por_defecto] if len(anteriores) >= cantidad_por_defecto else anteriores[0]
     if (desde.anio, desde.mes) > (hasta.anio, hasta.mes):
         desde, hasta = hasta, desde
-    return list(Periodo.objects.entre(desde, hasta))
+    permitidos = {p.pk for p in todos}
+    return [p for p in Periodo.objects.entre(desde, hasta) if p.pk in permitidos]
 
 
 def _exigir_reportes(request):
@@ -53,7 +55,7 @@ def _exigir_reportes(request):
 @login_required
 def inicio(request):
     contexto = {"menu_reportes": MENU_REPORTES, "ve_reportes": puede_ver_reportes(request.user)}
-    periodos = list(Periodo.objects.order_by("anio", "mes"))
+    periodos = list(Periodo.objects.filter(solo_flujo=False).order_by("anio", "mes"))
     if contexto["ve_reportes"] and periodos:
         ultimo = calcular_mes(periodos[-1])
         general, _ = punto_equilibrio(ultimo.cxs)
@@ -77,6 +79,8 @@ def reporte(request, nombre):
     if nombre not in REPORTES:
         raise Http404
     todos = list(Periodo.objects.order_by("anio", "mes"))
+    if nombre != "flujo-personal":
+        todos = [p for p in todos if not p.solo_flujo]
     contexto = {"menu_reportes": MENU_REPORTES, "nombre": nombre, "ve_reportes": True, "periodos": todos}
     if not todos:
         return render(request, "gestion/reporte.html", {**contexto, "sin_datos": True})

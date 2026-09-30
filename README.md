@@ -44,7 +44,11 @@ Para crear un usuario: *Carga de datos → Usuarios → Agregar*, y en **Grupos*
    - Soporte a Producción PAE y Cercos suman su cuadrilla fija.
    - El **Pool Operativo** se reparte entre los otros 7 servicios en proporción a sus ventas del mes.
    - **Administración** es gasto operativo: entra a los costos fijos y se reparte con el % de asignación.
-5. **Nómina con criterio de caja.** Cada mes lleva lo que se *pagó* en ese mes: los sueldos del período anterior (el período Junio se paga en Julio), su F.931 y sus sindicatos. En UOCRA, el mes lleva la 2ª quincena del mes anterior y la 1ª quincena del mes. El aguinaldo (SAC) entra en el mes en que se paga (Julio y Enero). Ventas y compras van por el mes de la factura.
+5. **Nómina: devengado para resultados, percibido para el flujo de fondos.**
+   - En *Personal y Nómina* cada renglón es el **período trabajado** (devengado): los sueldos, el F.931 y los sindicatos del período Julio van en Julio aunque se paguen en Agosto. El Estado de Resultados, Costos por Servicio, Punto de Equilibrio y Rentabilidad usan el período.
+   - El reporte **Flujo de fondos — Personal** ubica cada pago en el mes en que sale la plata (percibido): el personal mensual cobra el período el mes siguiente; en UOCRA la 1ª quincena se paga en el mismo mes (campo *"haberes pagados dentro del mismo mes"*) y la 2ª el mes siguiente; el F.931 y los sindicatos se pagan el mes siguiente; los honorarios, en el mismo mes.
+   - Un mes anterior al inicio del seguimiento (ej. Junio) se carga marcado *"sólo para el flujo de fondos"*: sus pagos aparecen en el flujo del mes siguiente, pero no en los reportes de resultados.
+   - En *Sindicato y mutual* va sólo lo que paga la empresa (ej. Art. 28, fondo de cese laboral, IERIC). Las retenciones al empleado (cuota sindical, mutual, seguro de vida) ya están dentro del sueldo bruto.
 6. **Costos fijos** = Total Gastos Operativos + Total Gastos Bancarios del mes.
 7. **Punto de equilibrio** = Costos Fijos ÷ Margen de Contribución %.
 
@@ -101,7 +105,7 @@ docker compose exec web python manage.py createsuperuser
 
 ```
 docker compose cp Valpob_Punto_Equilibrio_Rentabilidad.xlsx web:/tmp/valpob.xlsx
-docker compose exec web python manage.py importar_excel /tmp/valpob.xlsx --usuario <tu usuario>
+docker compose exec web python manage.py importar_excel /tmp/valpob.xlsx --desde-mes 6 --usuario <tu usuario>
 ```
 
 Después se completan el neto y el IVA de cada factura de venta con los listados del sistema de facturación (el Excel tenía un solo importe por factura):

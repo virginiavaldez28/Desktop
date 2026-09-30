@@ -31,6 +31,7 @@ def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplo
             len(contenido.nomina) + len(contenido.ventas) + len(contenido.compras) + len(contenido.gastos))
     auditoria = {"creado_por": usuario, "modificado_por": usuario}
 
+    primer_mes_con_ventas = min((r.mes for r in contenido.ventas), default=1)
     periodos = {}
     for mes in contenido.meses:
         periodo, creado = Periodo.objects.get_or_create(anio=anio, mes=mes, defaults=auditoria)
@@ -47,6 +48,7 @@ def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplo
         if tiene_datos:
             for modelo in (LiquidacionNomina, Venta, Compra, GastoManual):
                 modelo.objects.filter(periodo=periodo).delete()
+        periodo.solo_flujo = mes < primer_mes_con_ventas
         periodo.modo_asignacion = (
             ModoAsignacion.MANUAL if contenido.modo_asignacion_manual else ModoAsignacion.AUTOMATICO
         )
@@ -83,6 +85,7 @@ def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplo
             contribuciones_patronales=r.contribuciones,
             sindicato_mutual=r.sindicato,
             honorarios=r.honorarios,
+            haberes_pagados_en_el_mes=r.pagado_en_el_mes,
             observaciones=r.observaciones,
             **auditoria,
         )

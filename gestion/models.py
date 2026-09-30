@@ -92,6 +92,11 @@ class Periodo(Auditable):
         default=False,
         help_text="Un mes cerrado ya no se puede modificar, salvo por un Administrador.",
     )
+    solo_flujo = models.BooleanField(
+        "sólo para el flujo de fondos", default=False,
+        help_text="Marcar en los meses anteriores al inicio del seguimiento que se cargan sólo porque sus sueldos, "
+                  "F.931 y sindicatos se pagan en el mes siguiente. No aparecen en los reportes de resultados.",
+    )
     saldo_proveedores = campo_monto(
         "saldo de proveedores al cierre del mes",
         null=True,
@@ -228,9 +233,9 @@ class LiquidacionNomina(Auditable):
 
     persona = models.ForeignKey(Persona, on_delete=models.PROTECT, related_name="liquidaciones")
     periodo = models.ForeignKey(
-        Periodo, verbose_name="mes de pago", on_delete=models.PROTECT, related_name="nomina",
-        help_text="Criterio de caja: el mes en que se PAGA. Ej.: los sueldos del período Junio, que se pagan en Julio, "
-                  "van en Julio; las contribuciones (F.931) y los sindicatos del período Junio también.",
+        Periodo, verbose_name="período (mes trabajado)", on_delete=models.PROTECT, related_name="nomina",
+        help_text="El período liquidado (devengado), aunque se pague el mes siguiente. Ej.: los sueldos, el F.931 y "
+                  "los sindicatos del período Junio van en Junio. El reporte de Flujo de fondos los ubica en el mes de pago.",
     )
     mano_obra_directa = models.BooleanField(
         "¿mano de obra directa?",
@@ -259,6 +264,12 @@ class LiquidacionNomina(Auditable):
         help_text="Importe final ya calculado por quien carga (según recibo y planilla del sindicato).",
     )
     honorarios = campo_monto("honorarios (monotributistas)", default=Decimal("0"))
+    haberes_pagados_en_el_mes = campo_monto(
+        "haberes pagados dentro del mismo mes", default=Decimal("0"),
+        help_text="Sólo para quienes cobran por quincena (UOCRA): el importe bruto de la 1ª quincena, que se paga "
+                  "dentro del mismo mes. El resto de los haberes, las contribuciones (F.931) y los sindicatos del "
+                  "período se pagan el mes siguiente. Para el personal mensual dejalo en 0.",
+    )
     observaciones = models.TextField(blank=True)
 
     history = HistoricalRecords()
@@ -293,6 +304,9 @@ class LiquidacionNomina(Auditable):
             errores["asignacion"] = (
                 'Si ¿Mano de Obra Directa? es "No" (estructura), el Servicio Asignado tiene que ser "Administración".'
             )
+        if (self.haberes is not None and self.haberes_pagados_en_el_mes is not None
+                and self.haberes_pagados_en_el_mes > self.haberes):
+            errores["haberes_pagados_en_el_mes"] = "No puede ser mayor que los haberes del período."
         if self.persona_id and self.periodo_id and self.porcentaje_afectacion is not None:
             otros = (
                 LiquidacionNomina.objects.filter(persona_id=self.persona_id, periodo_id=self.periodo_id)

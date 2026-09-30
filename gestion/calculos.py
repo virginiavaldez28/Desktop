@@ -508,3 +508,55 @@ def calcular_mes(periodo) -> Mes:
 
 def calcular_periodos(periodos):
     return [calcular_mes(p) for p in periodos]
+
+
+# ---------------------------------------------------------------------------
+# Flujo de fondos del personal (percibido: por mes de pago)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PagosPersonal:
+    """Lo que se pagó al personal en un mes, según la fecha de pago de cada concepto."""
+
+    periodo: object
+    quincenas_del_mes: Decimal = CERO       # 1ª quincena del período actual (UOCRA)
+    sueldos_periodo_anterior: Decimal = CERO  # mensuales y 2ª quincena del período anterior
+    contribuciones_periodo_anterior: Decimal = CERO  # F.931 del período anterior
+    sindicatos_periodo_anterior: Decimal = CERO
+    honorarios_del_mes: Decimal = CERO
+    falta_periodo_anterior: bool = False
+
+    @property
+    def total(self):
+        return (self.quincenas_del_mes + self.sueldos_periodo_anterior + self.contribuciones_periodo_anterior
+                + self.sindicatos_periodo_anterior + self.honorarios_del_mes)
+
+
+def periodo_anterior(periodo):
+    from .models import Periodo
+
+    anio, mes = (periodo.anio, periodo.mes - 1) if periodo.mes > 1 else (periodo.anio - 1, 12)
+    return Periodo.objects.filter(anio=anio, mes=mes).first()
+
+
+def pagos_personal(periodo) -> PagosPersonal:
+    """Regla de pago: la 1ª quincena (UOCRA) y los honorarios se pagan en el mismo mes del período;
+    el resto de los haberes, el F.931 y los sindicatos del período se pagan el mes siguiente."""
+    from .models import LiquidacionNomina
+
+    p = PagosPersonal(periodo=periodo)
+    for r in LiquidacionNomina.objects.filter(periodo=periodo):
+        pct = r.porcentaje_afectacion / CIEN
+        p.quincenas_del_mes += r.haberes_pagados_en_el_mes * pct
+        p.honorarios_del_mes += r.honorarios * pct
+    anterior = periodo_anterior(periodo)
+    if anterior is None:
+        p.falta_periodo_anterior = True
+        return p
+    for r in LiquidacionNomina.objects.filter(periodo=anterior):
+        pct = r.porcentaje_afectacion / CIEN
+        p.sueldos_periodo_anterior += (r.haberes - r.haberes_pagados_en_el_mes) * pct
+        p.contribuciones_periodo_anterior += r.contribuciones_patronales * pct
+        p.sindicatos_periodo_anterior += r.sindicato_mutual * pct
+    return p

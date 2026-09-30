@@ -163,7 +163,7 @@ class PeriodoAdmin(BaseAdmin):
     list_display = ("__str__", "modo_asignacion", "estado", "renglones_nomina", "facturas_venta", "facturas_compra")
     list_filter = ("anio", "cerrado", "modo_asignacion")
     fieldsets = (
-        (None, {"fields": ("anio", "mes", "cerrado", "observaciones")}),
+        (None, {"fields": ("anio", "mes", "cerrado", "solo_flujo", "observaciones")}),
         ("% de asignación de costos fijos", {"fields": ("modo_asignacion",)}),
         ("Memo del Estado de Resultados", {"fields": ("saldo_proveedores",)}),
         ("Auditoría", {"fields": BaseAdmin.campos_auditoria, "classes": ("collapse",)}),
@@ -279,7 +279,8 @@ class LiquidacionNominaAdmin(CargaMensualAdmin):
     list_select_related = ("periodo", "persona")
     fieldsets = (
         (None, {"fields": ("persona", "periodo", "mano_obra_directa", "asignacion", "porcentaje_afectacion", "regimen")}),
-        ("Costo del mes", {"fields": ("haberes", "contribuciones_patronales", "sindicato_mutual", "honorarios")}),
+        ("Costo del período", {"fields": ("haberes", "contribuciones_patronales", "sindicato_mutual", "honorarios")}),
+        ("Fecha de pago (para el Flujo de fondos)", {"fields": ("haberes_pagados_en_el_mes",)}),
         (None, {"fields": ("observaciones",)}),
         ("Auditoría", {"fields": BaseAdmin.campos_auditoria, "classes": ("collapse",)}),
     )

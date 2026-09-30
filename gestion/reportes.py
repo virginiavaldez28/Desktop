@@ -480,10 +480,60 @@ def rentabilidad(periodos):
     )
 
 
+# ---------------------------------------------------------------------------
+# 6. Flujo de fondos del personal (percibido)
+# ---------------------------------------------------------------------------
+
+
+def flujo_personal(periodos):
+    from .calculos import pagos_personal
+
+    pagos = [pagos_personal(p) for p in periodos]
+    meses = calcular_periodos(periodos)
+    n = len(periodos)
+    columnas = [p.nombre_corto for p in periodos] + ["Acumulado"]
+
+    def fila(etiqueta, valores, estilo=""):
+        return Fila(etiqueta, _con_acumulado(valores), estilo)
+
+    filas = [
+        _seccion("PAGADO EN EL MES — DEL PERÍODO ANTERIOR", n + 1),
+        fila("Sueldos (mensuales y 2ª quincena)", [x.sueldos_periodo_anterior for x in pagos], "detalle"),
+        fila("Contribuciones patronales (F.931)", [x.contribuciones_periodo_anterior for x in pagos], "detalle"),
+        fila("Sindicatos a cargo de la empresa", [x.sindicatos_periodo_anterior for x in pagos], "detalle"),
+        _seccion("PAGADO EN EL MES — DEL MISMO PERÍODO", n + 1),
+        fila("1ª quincena (UOCRA)", [x.quincenas_del_mes for x in pagos], "detalle"),
+        fila("Honorarios", [x.honorarios_del_mes for x in pagos], "detalle"),
+        fila("TOTAL PAGADO AL PERSONAL EN EL MES (percibido)", [x.total for x in pagos], "total"),
+        _seccion("REFERENCIA: COSTO LABORAL DEVENGADO DEL PERÍODO", n + 1),
+        fila("Costo laboral del período (Estado de Resultados)",
+             [m.er.mano_obra_directa + m.er.sueldos_administracion for m in meses]),
+        fila("Diferencia: pagado − devengado",
+             [x.total - (m.er.mano_obra_directa + m.er.sueldos_administracion) for x, m in zip(pagos, meses)], "subtotal"),
+    ]
+    faltan = [str(x.periodo) for x in pagos if x.falta_periodo_anterior]
+    advertencias = [
+        f"{', '.join(faltan)}: no está cargado el período anterior en Personal y Nómina, así que faltan los sueldos, "
+        "el F.931 y los sindicatos que se pagaron ese mes."
+    ] if faltan else []
+    return Reporte(
+        titulo="Flujo de fondos — Personal",
+        subtitulo=_nombre_rango(periodos) + " · por mes de pago (percibido)",
+        tablas=[Tabla(
+            "Pagos al personal por mes de pago", columnas, filas,
+            nota="Criterio de pago: el personal mensual cobra el período el mes siguiente; en UOCRA la 1ª quincena se paga "
+                 "en el mismo mes y la 2ª el mes siguiente. El F.931 y los sindicatos del período se pagan el mes siguiente. "
+                 "Los honorarios se toman como pagados en el mismo mes. El Estado de Resultados usa el período (devengado).",
+        )],
+        advertencias=advertencias,
+    )
+
+
 REPORTES = {
     "estado-de-resultados": estado_resultados,
     "apertura": apertura,
     "costos-por-servicio": costos_por_servicio,
     "punto-de-equilibrio": punto_de_equilibrio,
     "rentabilidad": rentabilidad,
+    "flujo-personal": flujo_personal,
 }

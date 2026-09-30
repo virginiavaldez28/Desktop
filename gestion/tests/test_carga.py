@@ -110,7 +110,8 @@ class RolesTest(TestCase):
         self.usuario("personal", CARGA_PERSONAL)
         respuesta = self.client.post(url, {"persona": persona.pk, "periodo": periodo.pk, "mano_obra_directa": "on",
                                            "asignacion": "POOL", "porcentaje_afectacion": "100", "haberes": "5",
-                                           "contribuciones_patronales": "0", "sindicato_mutual": "0", "honorarios": "0"})
+                                           "contribuciones_patronales": "0", "sindicato_mutual": "0", "honorarios": "0",
+                                           "haberes_pagados_en_el_mes": "0"})
         self.assertEqual(respuesta.status_code, 403)
         renglon.refresh_from_db()
         self.assertEqual(renglon.haberes, 0)
@@ -122,7 +123,7 @@ class RolesTest(TestCase):
         respuesta = self.client.post("/admin/gestion/liquidacionnomina/add/", {
             "persona": persona.pk, "periodo": periodo.pk, "mano_obra_directa": "on", "asignacion": "PAE",
             "porcentaje_afectacion": "100", "haberes": "1.234.567,89", "contribuciones_patronales": "0",
-            "sindicato_mutual": "0", "honorarios": "0",
+            "sindicato_mutual": "0", "honorarios": "0", "haberes_pagados_en_el_mes": "0",
         })
         self.assertEqual(respuesta.status_code, 302, respuesta.content[:2000])
         renglon = LiquidacionNomina.objects.get()
@@ -134,7 +135,8 @@ class RolesTest(TestCase):
         self.usuario("admin", ADMINISTRADOR)
         Periodo.objects.create(anio=2026, mes=7)
         Periodo.objects.create(anio=2026, mes=8)
-        for nombre in ("estado-de-resultados", "apertura", "costos-por-servicio", "punto-de-equilibrio", "rentabilidad"):
+        for nombre in ("estado-de-resultados", "apertura", "costos-por-servicio", "punto-de-equilibrio", "rentabilidad",
+                       "flujo-personal"):
             for extra in ("", "&formato=xlsx", "&formato=pdf"):
                 respuesta = self.client.get(f"/reportes/{nombre}/?desde=2026-07&hasta=2026-08{extra}")
                 self.assertEqual(respuesta.status_code, 200, (nombre, extra))
@@ -162,3 +164,41 @@ class IvaVentasTest(TestCase):
         mes = calcular_mes(periodo)
         self.assertEqual(mes.er.total_ventas, D("1180852.00"))
         self.assertEqual(mes.er.iva_ventas, D("247978.92"))
+
+
+class FlujoPersonalTest(TestCase):
+    def test_devengado_por_periodo_y_percibido_por_mes_de_pago(self):
+        from gestion.calculos import pagos_personal
+
+        junio = Periodo.objects.create(anio=2026, mes=6, solo_flujo=True)
+        julio = Periodo.objects.create(anio=2026, mes=7)
+        persona = Persona.objects.create(apellido_nombre="Obrero UOCRA")
+        mensual = Persona.objects.create(apellido_nombre="Empleado mensual")
+        for periodo, q1 in ((junio, D("400")), (julio, D("500"))):
+            LiquidacionNomina.objects.create(
+                persona=persona, periodo=periodo, asignacion=AsignacionPersonal.POOL, haberes=D("1000"),
+                haberes_pagados_en_el_mes=q1, contribuciones_patronales=D("200"), sindicato_mutual=D("50"),
+            )
+            LiquidacionNomina.objects.create(
+                persona=mensual, periodo=periodo, asignacion=AsignacionPersonal.ADMINISTRACION,
+                mano_obra_directa=False, haberes=D("3000"), contribuciones_patronales=D("600"), honorarios=D("10"),
+            )
+        # Devengado (Estado de Resultados): el período Julio completo.
+        self.assertEqual(calcular_mes(julio).er.mano_obra_directa, D("1250"))
+        # Percibido: en Julio se paga la 1ª quincena de Julio, los honorarios de Julio y todo el período Junio salvo
+        # su 1ª quincena (que se pagó en Junio).
+        pagos = pagos_personal(julio)
+        self.assertEqual(pagos.quincenas_del_mes, D("500"))
+        self.assertEqual(pagos.sueldos_periodo_anterior, D("600") + D("3000"))
+        self.assertEqual(pagos.contribuciones_periodo_anterior, D("800"))
+        self.assertEqual(pagos.sindicatos_periodo_anterior, D("50"))
+        self.assertEqual(pagos.honorarios_del_mes, D("10"))
+        self.assertEqual(pagos.total, D("4960"))
+
+    def test_quincena_no_puede_superar_los_haberes(self):
+        periodo = Periodo.objects.create(anio=2026, mes=7)
+        persona = Persona.objects.create(apellido_nombre="X")
+        renglon = LiquidacionNomina(persona=persona, periodo=periodo, asignacion=AsignacionPersonal.POOL,
+                                    haberes=D("100"), haberes_pagados_en_el_mes=D("150"))
+        with self.assertRaises(ValidationError):
+            renglon.full_clean()
