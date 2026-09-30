@@ -23,6 +23,10 @@ class Command(BaseCommand):
             help="Si los meses ya tienen datos, los borra y vuelve a importar.",
         )
         parser.add_argument("--usuario", help="Usuario que figura como autor de la carga.")
+        parser.add_argument(
+            "--desde-mes", type=int, default=1,
+            help="Ignora los renglones de meses anteriores (ej. 7 para empezar en Julio).",
+        )
 
     def handle(self, *args, **opciones):
         usuario = None
@@ -35,6 +39,7 @@ class Command(BaseCommand):
             resumen = importar(
                 contenido, opciones["anio"], usuario=usuario,
                 incluir_ejemplos=opciones["incluir_ejemplos"], reemplazar=opciones["reemplazar"],
+                mes_desde=opciones["desde_mes"],
             )
         except (ErrorExcel, ErrorImportacion) as error:
             raise CommandError(str(error)) from error

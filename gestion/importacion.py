@@ -13,9 +13,22 @@ class ErrorImportacion(Exception):
 
 
 @transaction.atomic
-def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplos=False, reemplazar=False):
-    """Importa el contenido del Excel para el año indicado. Devuelve un resumen (Counter)."""
+def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplos=False, reemplazar=False, mes_desde=1):
+    """Importa el contenido del Excel para el año indicado. Devuelve un resumen (Counter).
+
+    Los renglones de meses anteriores a `mes_desde` se ignoran (por ejemplo, la nómina
+    del período Junio, que el Excel conserva sólo como referencia).
+    """
     resumen = Counter()
+    if mes_desde > 1:
+        antes = len(contenido.nomina) + len(contenido.ventas) + len(contenido.compras) + len(contenido.gastos)
+        contenido.nomina = [r for r in contenido.nomina if r.mes >= mes_desde]
+        contenido.ventas = [r for r in contenido.ventas if r.mes >= mes_desde]
+        contenido.compras = [r for r in contenido.compras if r.mes >= mes_desde]
+        contenido.gastos = [g for g in contenido.gastos if g.mes >= mes_desde]
+        contenido.saldo_proveedores = {m: v for m, v in contenido.saldo_proveedores.items() if m >= mes_desde}
+        resumen["renglones de meses anteriores omitidos"] = antes - (
+            len(contenido.nomina) + len(contenido.ventas) + len(contenido.compras) + len(contenido.gastos))
     auditoria = {"creado_por": usuario, "modificado_por": usuario}
 
     periodos = {}
