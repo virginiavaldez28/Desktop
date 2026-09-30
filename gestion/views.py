@@ -79,8 +79,8 @@ def reporte(request, nombre):
     if nombre not in REPORTES:
         raise Http404
     todos = list(Periodo.objects.order_by("anio", "mes"))
-    if nombre != "flujo-personal":
-        todos = [p for p in todos if not p.solo_flujo]
+    # Los períodos "sólo para el flujo" alimentan el flujo del mes siguiente, pero no se muestran como columnas.
+    todos = [p for p in todos if not p.solo_flujo]
     contexto = {"menu_reportes": MENU_REPORTES, "nombre": nombre, "ve_reportes": True, "periodos": todos}
     if not todos:
         return render(request, "gestion/reporte.html", {**contexto, "sin_datos": True})
