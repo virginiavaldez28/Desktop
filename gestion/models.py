@@ -227,7 +227,11 @@ class LiquidacionNomina(Auditable):
     """Personal y Nómina: un renglón por persona, por mes y por servicio asignado."""
 
     persona = models.ForeignKey(Persona, on_delete=models.PROTECT, related_name="liquidaciones")
-    periodo = models.ForeignKey(Periodo, verbose_name="mes", on_delete=models.PROTECT, related_name="nomina")
+    periodo = models.ForeignKey(
+        Periodo, verbose_name="mes de pago", on_delete=models.PROTECT, related_name="nomina",
+        help_text="Criterio de caja: el mes en que se PAGA. Ej.: los sueldos del período Junio, que se pagan en Julio, "
+                  "van en Julio; las contribuciones (F.931) y los sindicatos del período Junio también.",
+    )
     mano_obra_directa = models.BooleanField(
         "¿mano de obra directa?",
         default=True,

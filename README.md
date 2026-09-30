@@ -44,8 +44,9 @@ Para crear un usuario: *Carga de datos → Usuarios → Agregar*, y en **Grupos*
    - Soporte a Producción PAE y Cercos suman su cuadrilla fija.
    - El **Pool Operativo** se reparte entre los otros 7 servicios en proporción a sus ventas del mes.
    - **Administración** es gasto operativo: entra a los costos fijos y se reparte con el % de asignación.
-5. **Costos fijos** = Total Gastos Operativos + Total Gastos Bancarios del mes.
-6. **Punto de equilibrio** = Costos Fijos ÷ Margen de Contribución %.
+5. **Nómina con criterio de caja.** Cada mes lleva lo que se *pagó* en ese mes: los sueldos del período anterior (el período Junio se paga en Julio), su F.931 y sus sindicatos. En UOCRA, el mes lleva la 2ª quincena del mes anterior y la 1ª quincena del mes. El aguinaldo (SAC) entra en el mes en que se paga (Julio y Enero). Ventas y compras van por el mes de la factura.
+6. **Costos fijos** = Total Gastos Operativos + Total Gastos Bancarios del mes.
+7. **Punto de equilibrio** = Costos Fijos ÷ Margen de Contribución %.
 
 ### Diferencia con el Excel (a propósito)
 
