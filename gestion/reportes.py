@@ -501,6 +501,7 @@ def flujo_personal(periodos):
         fila("Sueldos (mensuales y 2ª quincena)", [x.sueldos_periodo_anterior for x in pagos], "detalle"),
         fila("Contribuciones patronales (F.931)", [x.contribuciones_periodo_anterior for x in pagos], "detalle"),
         fila("Sindicatos a cargo de la empresa", [x.sindicatos_periodo_anterior for x in pagos], "detalle"),
+        fila("Pagos por transferencia (fuera de recibo)", [x.transferencias_periodo_anterior for x in pagos], "detalle"),
         _seccion("PAGADO EN EL MES — DEL MISMO PERÍODO", n + 1),
         fila("1ª quincena (UOCRA)", [x.quincenas_del_mes for x in pagos], "detalle"),
         fila("Honorarios", [x.honorarios_del_mes for x in pagos], "detalle"),
@@ -522,7 +523,7 @@ def flujo_personal(periodos):
         tablas=[Tabla(
             "Pagos al personal por mes de pago", columnas, filas,
             nota="Criterio de pago: el personal mensual cobra el período el mes siguiente; en UOCRA la 1ª quincena se paga "
-                 "en el mismo mes y la 2ª el mes siguiente. El F.931 y los sindicatos del período se pagan el mes siguiente. "
+                 "en el mismo mes y la 2ª el mes siguiente. El F.931, los sindicatos y los pagos por transferencia del período se pagan el mes siguiente. "
                  "Los honorarios se toman como pagados en el mismo mes. El Estado de Resultados usa el período (devengado).",
         )],
         advertencias=advertencias,

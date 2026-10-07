@@ -524,13 +524,14 @@ class PagosPersonal:
     sueldos_periodo_anterior: Decimal = CERO  # mensuales y 2ª quincena del período anterior
     contribuciones_periodo_anterior: Decimal = CERO  # F.931 del período anterior
     sindicatos_periodo_anterior: Decimal = CERO
+    transferencias_periodo_anterior: Decimal = CERO  # pagos fuera de recibo del período anterior
     honorarios_del_mes: Decimal = CERO
     falta_periodo_anterior: bool = False
 
     @property
     def total(self):
         return (self.quincenas_del_mes + self.sueldos_periodo_anterior + self.contribuciones_periodo_anterior
-                + self.sindicatos_periodo_anterior + self.honorarios_del_mes)
+                + self.sindicatos_periodo_anterior + self.transferencias_periodo_anterior + self.honorarios_del_mes)
 
 
 def periodo_anterior(periodo):
@@ -542,7 +543,8 @@ def periodo_anterior(periodo):
 
 def pagos_personal(periodo) -> PagosPersonal:
     """Regla de pago: la 1ª quincena (UOCRA) y los honorarios se pagan en el mismo mes del período;
-    el resto de los haberes, el F.931 y los sindicatos del período se pagan el mes siguiente."""
+    el resto de los haberes, los pagos por transferencia, el F.931 y los sindicatos del período se pagan el mes
+    siguiente."""
     from .models import LiquidacionNomina
 
     p = PagosPersonal(periodo=periodo)
@@ -559,4 +561,5 @@ def pagos_personal(periodo) -> PagosPersonal:
         p.sueldos_periodo_anterior += (r.haberes - r.haberes_pagados_en_el_mes) * pct
         p.contribuciones_periodo_anterior += r.contribuciones_patronales * pct
         p.sindicatos_periodo_anterior += r.sindicato_mutual * pct
+        p.transferencias_periodo_anterior += r.pagos_transferencia * pct
     return p

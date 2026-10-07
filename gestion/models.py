@@ -264,6 +264,11 @@ class LiquidacionNomina(Auditable):
         help_text="Importe final ya calculado por quien carga (según recibo y planilla del sindicato).",
     )
     honorarios = campo_monto("honorarios (monotributistas)", default=Decimal("0"))
+    pagos_transferencia = campo_monto(
+        "pagos por transferencia (fuera de recibo)", default=Decimal("0"),
+        help_text="Lo que se paga aparte del recibo y de la factura, por transferencia. Se toma como pagado el mes "
+                  "siguiente, junto con los sueldos del período.",
+    )
     haberes_pagados_en_el_mes = campo_monto(
         "haberes pagados dentro del mismo mes", default=Decimal("0"),
         help_text="Sólo para quienes cobran por quincena (UOCRA): el importe bruto de la 1ª quincena, que se paga "
@@ -287,7 +292,8 @@ class LiquidacionNomina(Auditable):
 
     @property
     def total_mes(self):
-        return self.haberes + self.contribuciones_patronales + self.sindicato_mutual + self.honorarios
+        return (self.haberes + self.contribuciones_patronales + self.sindicato_mutual + self.honorarios
+                + self.pagos_transferencia)
 
     @property
     def asignado_servicio(self):

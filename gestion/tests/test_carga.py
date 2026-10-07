@@ -111,7 +111,8 @@ class RolesTest(TestCase):
         respuesta = self.client.post(url, {"persona": persona.pk, "periodo": periodo.pk, "mano_obra_directa": "on",
                                            "asignacion": "POOL", "porcentaje_afectacion": "100", "haberes": "5",
                                            "contribuciones_patronales": "0", "sindicato_mutual": "0", "honorarios": "0",
-                                           "haberes_pagados_en_el_mes": "0"})
+                                           "haberes_pagados_en_el_mes": "0",
+                                           "pagos_transferencia": "0"})
         self.assertEqual(respuesta.status_code, 403)
         renglon.refresh_from_db()
         self.assertEqual(renglon.haberes, 0)
@@ -124,6 +125,7 @@ class RolesTest(TestCase):
             "persona": persona.pk, "periodo": periodo.pk, "mano_obra_directa": "on", "asignacion": "PAE",
             "porcentaje_afectacion": "100", "haberes": "1.234.567,89", "contribuciones_patronales": "0",
             "sindicato_mutual": "0", "honorarios": "0", "haberes_pagados_en_el_mes": "0",
+            "pagos_transferencia": "0",
         })
         self.assertEqual(respuesta.status_code, 302, respuesta.content[:2000])
         renglon = LiquidacionNomina.objects.get()
@@ -194,6 +196,22 @@ class FlujoPersonalTest(TestCase):
         self.assertEqual(pagos.sindicatos_periodo_anterior, D("50"))
         self.assertEqual(pagos.honorarios_del_mes, D("10"))
         self.assertEqual(pagos.total, D("4960"))
+
+    def test_pagos_por_transferencia_suman_al_costo_y_se_pagan_el_mes_siguiente(self):
+        from gestion.calculos import pagos_personal
+
+        junio = Periodo.objects.create(anio=2026, mes=6, solo_flujo=True)
+        julio = Periodo.objects.create(anio=2026, mes=7)
+        socio = Persona.objects.create(apellido_nombre="Socio")
+        for periodo in (junio, julio):
+            LiquidacionNomina.objects.create(
+                persona=socio, periodo=periodo, asignacion=AsignacionPersonal.ADMINISTRACION, mano_obra_directa=False,
+                haberes=D("100"), honorarios=D("20"), pagos_transferencia=D("30"),
+            )
+        self.assertEqual(calcular_mes(julio).er.sueldos_administracion, D("150"))
+        pagos = pagos_personal(julio)
+        self.assertEqual(pagos.transferencias_periodo_anterior, D("30"))
+        self.assertEqual(pagos.total, D("100") + D("30") + D("20"))
 
     def test_quincena_no_puede_superar_los_haberes(self):
         periodo = Periodo.objects.create(anio=2026, mes=7)

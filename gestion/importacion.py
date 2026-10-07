@@ -86,6 +86,7 @@ def importar(contenido: ContenidoExcel, anio: int, usuario=None, incluir_ejemplo
             sindicato_mutual=r.sindicato,
             honorarios=r.honorarios,
             haberes_pagados_en_el_mes=r.pagado_en_el_mes,
+            pagos_transferencia=r.transferencias,
             observaciones=r.observaciones,
             **auditoria,
         )

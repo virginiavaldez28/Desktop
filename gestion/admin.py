@@ -279,7 +279,8 @@ class LiquidacionNominaAdmin(CargaMensualAdmin):
     list_select_related = ("periodo", "persona")
     fieldsets = (
         (None, {"fields": ("persona", "periodo", "mano_obra_directa", "asignacion", "porcentaje_afectacion", "regimen")}),
-        ("Costo del período", {"fields": ("haberes", "contribuciones_patronales", "sindicato_mutual", "honorarios")}),
+        ("Costo del período", {"fields": ("haberes", "contribuciones_patronales", "sindicato_mutual", "honorarios",
+                                          "pagos_transferencia")}),
         ("Fecha de pago (para el Flujo de fondos)", {"fields": ("haberes_pagados_en_el_mes",)}),
         (None, {"fields": ("observaciones",)}),
         ("Auditoría", {"fields": BaseAdmin.campos_auditoria, "classes": ("collapse",)}),

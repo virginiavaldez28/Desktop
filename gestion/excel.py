@@ -100,9 +100,11 @@ class RenglonNomina:
     honorarios: Decimal
     observaciones: str
     pagado_en_el_mes: Decimal = Decimal("0")
+    transferencias: Decimal = Decimal("0")
 
 
 COLUMNA_PAGADO_EN_EL_MES = "Haberes pagados en el mismo mes (1ª quincena UOCRA)"
+COLUMNA_TRANSFERENCIAS = "Pagos por transferencia (fuera de recibo)"
 
 
 @dataclass
@@ -192,6 +194,7 @@ def leer_nomina(libro):
         "obs": _columna(enc, "Observaciones"),
     }
     col_pagado = enc.get(COLUMNA_PAGADO_EN_EL_MES)  # opcional
+    col_transf = enc.get(COLUMNA_TRANSFERENCIAS)  # opcional
     asignacion_por_nombre = {a.label: a for a in AsignacionPersonal}
     asignacion_por_nombre["Administración"] = AsignacionPersonal.ADMINISTRACION
     renglones = []
@@ -221,6 +224,7 @@ def leer_nomina(libro):
             honorarios=decimal(hoja.cell(fila, col["honorarios"]).value),
             observaciones=observaciones,
             pagado_en_el_mes=decimal(hoja.cell(fila, col_pagado).value) if col_pagado else Decimal("0"),
+            transferencias=decimal(hoja.cell(fila, col_transf).value) if col_transf else Decimal("0"),
         ))
     return renglones
 
