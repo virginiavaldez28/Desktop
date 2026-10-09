@@ -2,7 +2,8 @@
 
 La planilla tiene una fila por factura con los datos del sistema de compras y,
 en las columnas "Categoría final" y "Servicio Asignado final", la clasificación
-revisada. Las filas cuya categoría empieza con "EXCLUIR" no se cargan.
+revisada. Las filas cuya categoría empieza con "EXCLUIR" no se cargan. La columna
+opcional "Tipo de costo final" indica si es costo fijo o variable (por defecto, variable).
 """
 from collections import Counter
 from datetime import date, datetime
@@ -12,13 +13,15 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from gestion.catalogos import CategoriaCompra, ServicioCompra
+from gestion.catalogos import CategoriaCompra, ServicioCompra, TipoCosto
 from gestion.excel import decimal, texto
 from gestion.formato import moneda
 from gestion.models import Compra, Periodo, Proveedor
 
 CATEGORIAS = {c.label: c for c in CategoriaCompra}
 SERVICIOS = {s.label: s for s in ServicioCompra}
+TIPOS_COSTO = {"": TipoCosto.VARIABLE, "variable": TipoCosto.VARIABLE, "costo variable": TipoCosto.VARIABLE,
+               "fijo": TipoCosto.FIJO, "costo fijo": TipoCosto.FIJO}
 TIPOS = {"FC": "Factura", "FCE": "Factura de Crédito Electrónica", "REC": "Recibo", "NC": "Nota de Crédito",
          "NCE": "N.C. Electrónica", "ND": "Nota de Débito"}
 
@@ -66,6 +69,10 @@ class Command(BaseCommand):
             if not isinstance(fecha, date):
                 errores.append(f"Fila {n}: fecha inválida {fecha!r}.")
                 continue
+            tipo_costo = texto(fila[col["Tipo de costo final"]]).lower() if "Tipo de costo final" in col else ""
+            if tipo_costo not in TIPOS_COSTO:
+                errores.append(f"Fila {n}: tipo de costo {tipo_costo!r} desconocido (fijo o variable).")
+                continue
             tipo = texto(fila[col["Tipo"]])
             observaciones = " ".join(
                 texto(fila[col[c]]) for c in ("Motivo / pregunta", "observacion de virginia") if c in col
@@ -79,6 +86,7 @@ class Command(BaseCommand):
                 numero=int(fila[col["N°"]] or 0),
                 categoria=CATEGORIAS[categoria],
                 servicio_asignado=SERVICIOS[servicio],
+                tipo_costo=TIPOS_COSTO[tipo_costo],
                 neto=decimal(fila[col["Monto sin IVA"]]),
                 iva=decimal(fila[col["IVA"]]),
                 observaciones=observaciones,

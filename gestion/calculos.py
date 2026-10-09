@@ -18,6 +18,7 @@ from decimal import Decimal
 
 from .catalogos import (
     CATEGORIAS_COSTO_DIRECTO,
+    RUBRO_BANCARIO_DE_CATEGORIA,
     RUBRO_DE_CATEGORIA_GASTO,
     GRUPO_DE_RUBRO,
     SERVICIOS,
@@ -28,6 +29,7 @@ from .catalogos import (
     ModoAsignacion,
     RubroGasto,
     ServicioCompra,
+    TipoCosto,
 )
 
 CERO = Decimal("0")
@@ -40,6 +42,7 @@ RUBROS_GASTO_OPERATIVO = [
     RubroGasto.SEGUROS,
     RubroGasto.IMPUESTOS_TASAS,
     RubroGasto.OTROS_GASTOS_OPERATIVOS,
+    RubroGasto.COSTOS_FIJOS_OPERACION,
     RubroGasto.LEASING,
     RubroGasto.PLANES_PAGO,
 ]
@@ -76,8 +79,10 @@ class DatosMes:
     dotacion: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
     # Nómina con ¿MOD? = No (estructura de Administración).
     sueldos_administracion: Decimal = CERO
-    # Compras por (categoría, servicio asignado).
+    # Compras por (categoría, servicio asignado). Las compras directas de costo fijo van aparte.
     compras: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
+    # Compras directas de costo fijo por (categoría, servicio asignado).
+    compras_fijas: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
     # Gastos manuales por rubro.
     gastos: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
     modo_asignacion: str = ModoAsignacion.AUTOMATICO
@@ -103,9 +108,13 @@ class DatosMes:
             else:
                 datos.sueldos_administracion += renglon.asignado_servicio
 
-        compras = Compra.objects.filter(periodo=periodo).values_list("categoria", "servicio_asignado", "neto", "iva")
-        for categoria, servicio, neto, iva in compras:
-            datos.compras[(categoria, servicio)] += neto
+        compras = Compra.objects.filter(periodo=periodo).values_list(
+            "categoria", "servicio_asignado", "tipo_costo", "neto", "iva")
+        for categoria, servicio, tipo_costo, neto, iva in compras:
+            if tipo_costo == TipoCosto.FIJO and categoria in CATEGORIAS_COSTO_DIRECTO:
+                datos.compras_fijas[(categoria, servicio)] += neto
+            else:
+                datos.compras[(categoria, servicio)] += neto
             datos.iva_compras += iva
 
         for rubro, monto in GastoManual.objects.filter(periodo=periodo).values_list("rubro", "monto"):
@@ -117,6 +126,13 @@ class DatosMes:
 
     def compras_categoria(self, categoria):
         return sum((v for (c, _), v in self.compras.items() if c == categoria), CERO)
+
+    @property
+    def total_compras_fijas(self):
+        return sum(self.compras_fijas.values(), CERO)
+
+    def compras_fijas_servicio(self, servicio):
+        return sum((v for (_, s), v in self.compras_fijas.items() if s == servicio), CERO)
 
 
 # ---------------------------------------------------------------------------
@@ -172,12 +188,16 @@ def estado_resultados(datos: DatosMes) -> EstadoResultados:
     compras_gastos_operativos = {r: CERO for r in RUBROS_GASTO_OPERATIVO}
     for categoria, rubro in RUBRO_DE_CATEGORIA_GASTO.items():
         compras_gastos_operativos[rubro] += datos.compras_categoria(categoria)
+    # Las compras directas de costo fijo (de un servicio o generales) son costo fijo de operación.
+    compras_gastos_operativos[RubroGasto.COSTOS_FIJOS_OPERACION] += datos.total_compras_fijas
     for rubro, monto in compras_gastos_operativos.items():
         gastos_operativos[rubro] += monto
     compras_otros_egresos = compras_gastos_operativos[RubroGasto.OTROS_GASTOS_OPERATIVOS]
     total_go = datos.sueldos_administracion + sum(gastos_operativos.values(), CERO)
 
     gastos_bancarios = {r: datos.gastos[r] for r in RUBROS_GASTO_BANCARIO}
+    for categoria, rubro in RUBRO_BANCARIO_DE_CATEGORIA.items():
+        gastos_bancarios[rubro] += datos.compras_categoria(categoria)
     total_gb = sum(gastos_bancarios.values(), CERO)
 
     resultado_operativo = utilidad_bruta - total_go - total_gb
@@ -249,6 +269,10 @@ class CostosPorServicio:
     # "a prorratear por personal afectado" (EPP).
     dotacion: dict = field(default_factory=lambda: {s: CERO for s in SERVICIOS})
     porcentaje_dotacion: dict = field(default_factory=lambda: {s: CERO for s in SERVICIOS})
+    # Costos fijos asignados = fijos directos del servicio (compras de costo fijo de ese servicio)
+    # + su parte de los costos fijos generales según el % de asignación.
+    fijos_directos: dict = field(default_factory=lambda: {s: CERO for s in SERVICIOS})
+    fijos_generales_asignados: dict = field(default_factory=lambda: {s: CERO for s in SERVICIOS})
 
     # --- totales y porcentajes derivados -------------------------------------
     @property
@@ -361,9 +385,15 @@ def costos_por_servicio(datos: DatosMes, er: EstadoResultados = None) -> CostosP
     total_cv = {s: sum((costos_variables[f][s] for f, _ in FILAS_COSTO_VARIABLE), CERO) for s in SERVICIOS}
     margen = {s: datos.ventas[s] - total_cv[s] for s in SERVICIOS}
 
-    # Costos fijos = Gastos Operativos + Gastos Bancarios del mes (incluye Sueldos de Administración).
+    # Costos fijos = Gastos Operativos + Gastos Bancarios del mes (incluye Sueldos de Administración
+    # y las compras de costo fijo). Las compras de costo fijo de un servicio se le cargan directo a ese
+    # servicio (las de EPP, según el personal afectado); el resto se reparte según el % de asignación.
     costos_fijos = er.total_gastos_operativos + er.total_gastos_bancarios
-    asignados = {s: costos_fijos * pct[s] for s in SERVICIOS}
+    fijos_epp = sum((v for (_, s), v in datos.compras_fijas.items() if s == ServicioCompra.POR_PERSONAL.value), CERO)
+    fijos_directos = {s: datos.compras_fijas_servicio(s.value) + fijos_epp * pct_dotacion[s] for s in SERVICIOS}
+    generales = costos_fijos - sum(fijos_directos.values(), CERO)
+    fijos_generales = {s: generales * pct[s] for s in SERVICIOS}
+    asignados = {s: fijos_directos[s] + fijos_generales[s] for s in SERVICIOS}
     if costos_fijos and not any(pct.values()):
         advertencias.append("Hay costos fijos pero no hay ventas en el mes para asignarlos entre servicios.")
 
@@ -383,6 +413,8 @@ def costos_por_servicio(datos: DatosMes, er: EstadoResultados = None) -> CostosP
         advertencias=advertencias,
         dotacion=dotacion,
         porcentaje_dotacion=pct_dotacion,
+        fijos_directos=fijos_directos,
+        fijos_generales_asignados=fijos_generales,
     )
 
 
@@ -396,6 +428,8 @@ def sumar_costos_por_servicio(meses):
 
     costos_fijos = sum((m.costos_fijos for m in meses), CERO)
     asignados = sumar("costos_fijos_asignados")
+    fijos_directos = sumar("fijos_directos")
+    fijos_generales = sumar("fijos_generales_asignados")
     modos = {m.modo_asignacion for m in meses}
     return CostosPorServicio(
         ventas=sumar("ventas"),
@@ -410,14 +444,18 @@ def sumar_costos_por_servicio(meses):
         total_gastos_bancarios=sum((m.total_gastos_bancarios for m in meses), CERO),
         costos_fijos=costos_fijos,
         modo_asignacion=modos.pop() if len(modos) == 1 else "MIXTO",
-        # En un acumulado, el % efectivo es la proporción de costos fijos que recibió cada servicio.
-        porcentaje_asignacion={s: dividir(asignados[s], costos_fijos) for s in SERVICIOS},
+        # En un acumulado, el % efectivo es la proporción de costos fijos generales que recibió cada servicio.
+        porcentaje_asignacion={
+            s: dividir(fijos_generales[s], sum(fijos_generales.values(), CERO)) for s in SERVICIOS
+        },
         costos_fijos_asignados=asignados,
         resultado_neto=sumar("resultado_neto"),
         advertencias=[a for m in meses for a in m.advertencias],
         # En un acumulado, la dotación es el promedio mensual.
         dotacion={s: v / len(meses) for s, v in sumar("dotacion").items()},
         porcentaje_dotacion={s: dividir(v, sum(sumar("dotacion").values(), CERO)) for s, v in sumar("dotacion").items()},
+        fijos_directos=fijos_directos,
+        fijos_generales_asignados=fijos_generales,
     )
 
 

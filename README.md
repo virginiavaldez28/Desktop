@@ -50,6 +50,8 @@ Para crear un usuario: *Carga de datos → Usuarios → Agregar*, y en **Grupos*
    - Un mes anterior al inicio del seguimiento (ej. Junio) se carga marcado *"sólo para el flujo de fondos"*: sus pagos aparecen en el flujo del mes siguiente, pero no en los reportes de resultados.
    - En *Sindicato y mutual* va sólo lo que paga la empresa (ej. Art. 28, fondo de cese laboral, IERIC). Las retenciones al empleado (cuota sindical, mutual, seguro de vida) ya están dentro del sueldo bruto.
 6. **Costos fijos** = Total Gastos Operativos + Total Gastos Bancarios del mes.
+   - Las compras de Materiales, Combustible, Mantenimiento u Otros Costos Directos marcadas como **costo fijo** (se pagan todos los meses aunque no se facture, ej. alquiler de trailers o vehículos) no entran al margen de contribución: van a *Costos Fijos de Operación* dentro de Gastos Operativos. Si están asignadas a un servicio, en Costos por Servicio y Rentabilidad se le cargan directo a ese servicio; el resto de los costos fijos se reparte con el % de asignación.
+   - Las facturas del banco (categoría *Gasto Bancario*) suman a Comisiones Bancarias.
 7. **Punto de equilibrio** = Costos Fijos ÷ Margen de Contribución %.
 
 ### Diferencia con el Excel (a propósito)

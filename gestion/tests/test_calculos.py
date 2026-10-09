@@ -205,3 +205,27 @@ class ComprasGastoOperativoTest(SimpleTestCase):
         cxs = costos_por_servicio(datos, er)
         self.assertEqual(cxs.total_cv, 0)
         self.assertEqual(cxs.costos_fijos, D("60"))
+
+
+class ComprasCostoFijoTest(SimpleTestCase):
+    def test_costo_fijo_de_un_servicio_se_le_carga_directo_y_cuenta_como_fijo(self):
+        datos = datos_base()
+        # Alquiler de trailers: costo fijo de Hidrolavadoras; combustible general fijo; un insumo variable.
+        datos.compras_fijas[(CategoriaCompra.OTROS_COSTOS_DIRECTOS.value, S.HIDROLAVADORAS.value)] = D("100")
+        datos.compras_fijas[(CategoriaCompra.COMBUSTIBLE.value, ServicioCompra.GENERAL.value)] = D("50")
+        datos.compras[(CategoriaCompra.MATERIALES.value, S.HIDROLAVADORAS.value)] = D("30")
+        datos.compras[(CategoriaCompra.GASTO_BANCARIO.value, ServicioCompra.NO_APLICA.value)] = D("5")
+        er = estado_resultados(datos)
+        self.assertEqual(er.total_costo_servicios, D("30"))  # sólo lo variable
+        self.assertEqual(er.gastos_operativos[RubroGasto.COSTOS_FIJOS_OPERACION], D("150"))
+        self.assertEqual(er.gastos_bancarios[RubroGasto.COMISIONES_BANCARIAS], D("5"))
+        cxs = costos_por_servicio(datos, er)
+        self.assertEqual(cxs.total_cv, D("30"))
+        self.assertEqual(cxs.costos_fijos, D("155"))
+        self.assertEqual(cxs.fijos_directos[S.HIDROLAVADORAS], D("100"))
+        # Los 55 generales (combustible fijo + banco) se reparten por ventas: Hidro 30 %.
+        self.assertEqual(cxs.costos_fijos_asignados[S.HIDROLAVADORAS], D("100") + D("55") * D("0.3"))
+        self.assertEqual(cxs.costos_fijos_asignados[S.SOPORTE_PAE], D("55") * D("0.6"))
+        self.assertEqual(sum(cxs.costos_fijos_asignados.values()), D("155"))
+        general, _ = punto_equilibrio(cxs)
+        self.assertEqual(general.costos_fijos, D("155"))

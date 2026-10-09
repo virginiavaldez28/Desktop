@@ -16,7 +16,7 @@ from django.db.models import Sum
 from simple_history.models import HistoricalRecords
 
 from .catalogos import (
-    CATEGORIAS_GASTO_OPERATIVO,
+    CATEGORIAS_SIN_SERVICIO,
     NOMBRE_MES,
     SERVICIOS,
     AsignacionPersonal,
@@ -26,6 +26,7 @@ from .catalogos import (
     RubroGasto,
     Servicio,
     ServicioCompra,
+    TipoCosto,
 )
 
 CIEN = Decimal("100")
@@ -341,6 +342,13 @@ class Compra(Auditable):
     numero = models.PositiveBigIntegerField("N° de factura")
     periodo = models.ForeignKey(Periodo, verbose_name="mes", on_delete=models.PROTECT, related_name="compras")
     categoria = models.CharField("categoría", max_length=20, choices=CategoriaCompra.choices)
+    tipo_costo = models.CharField(
+        "tipo de costo", max_length=10, choices=TipoCosto.choices, default=TipoCosto.VARIABLE,
+        help_text="Sólo para Materiales, Combustible, Mantenimiento y Otros Costos Directos. Costo fijo: se paga "
+                  "todos los meses aunque no se facture (ej. alquiler de trailers o vehículos). Si se asigna a un "
+                  "servicio, se le carga a ese servicio; si es GENERAL, se reparte como el resto de los costos fijos. "
+                  "En el Punto de Equilibrio cuenta como costo fijo.",
+    )
     servicio_asignado = models.CharField(
         "servicio asignado", max_length=20, choices=ServicioCompra.choices,
         help_text='Si sabés cómo se reparte la factura entre servicios (ej. 40% PAE y 60% Módulos), cargala en un '
@@ -384,11 +392,11 @@ class Compra(Auditable):
         return self.neto + self.iva
 
     def clean(self):
-        es_gasto_operativo = self.categoria in CATEGORIAS_GASTO_OPERATIVO
+        es_gasto_operativo = self.categoria in CATEGORIAS_SIN_SERVICIO
         es_no_aplica = self.servicio_asignado == ServicioCompra.NO_APLICA
         if es_gasto_operativo and not es_no_aplica:
             raise ValidationError({
-                "servicio_asignado": 'Los gastos operativos ("Otros Egresos" y "Gasto Operativo — …") no se asignan a '
+                "servicio_asignado": 'Los gastos operativos ("Otros Egresos", "Gasto Operativo — …") y bancarios no se asignan a '
                 'un servicio: el Servicio Asignado tiene que ser "N/A — Otros Egresos".'
             })
         if es_no_aplica and not es_gasto_operativo:

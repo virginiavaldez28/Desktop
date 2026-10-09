@@ -63,6 +63,14 @@ class CategoriaCompra(models.TextChoices):
     GO_SEGUROS = "GO_SEGUROS", "Gasto Operativo — Seguros"
     GO_ALQUILERES = "GO_ALQUILERES", "Gasto Operativo — Alquileres"
     GO_IMPUESTOS = "GO_IMPUESTOS", "Gasto Operativo — Impuestos y Tasas"
+    GASTO_BANCARIO = "GASTO_BANCARIO", "Gasto Bancario (comisiones facturadas por el banco)"
+
+
+class TipoCosto(models.TextChoices):
+    """Cómo se comporta el costo de una compra directa (Materiales, Combustible, Mantenimiento, Otros)."""
+
+    VARIABLE = "VARIABLE", "Costo variable (depende de lo que se trabaja/factura)"
+    FIJO = "FIJO", "Costo fijo (se paga todos los meses, se facture o no)"
 
 
 # Categorías que son costo de prestar los servicios (entran a Costos por Servicio).
@@ -107,6 +115,7 @@ class RubroGasto(models.TextChoices):
     SEGUROS = "SEGUROS", "Seguros"
     IMPUESTOS_TASAS = "IMPUESTOS", "Impuestos y Tasas"
     OTROS_GASTOS_OPERATIVOS = "OTROS_GO", "Otros Gastos Operativos"
+    COSTOS_FIJOS_OPERACION = "FIJOS_OPERACION", "Costos Fijos de Operación (compras de costo fijo)"
     LEASING = "LEASING", "Leasing Vehículos/Equipos"
     PLANES_PAGO = "PLANES_PAGO", "Cuotas Planes de Pago"
     COMISIONES_BANCARIAS = "COMISIONES", "Comisiones Bancarias"
@@ -123,6 +132,7 @@ GRUPO_DE_RUBRO = {
     RubroGasto.SEGUROS: GrupoRubro.GASTO_OPERATIVO,
     RubroGasto.IMPUESTOS_TASAS: GrupoRubro.GASTO_OPERATIVO,
     RubroGasto.OTROS_GASTOS_OPERATIVOS: GrupoRubro.GASTO_OPERATIVO,
+    RubroGasto.COSTOS_FIJOS_OPERACION: GrupoRubro.GASTO_OPERATIVO,
     RubroGasto.LEASING: GrupoRubro.GASTO_OPERATIVO,
     RubroGasto.PLANES_PAGO: GrupoRubro.GASTO_OPERATIVO,
     RubroGasto.COMISIONES_BANCARIAS: GrupoRubro.GASTO_BANCARIO,
@@ -149,6 +159,10 @@ RUBRO_DE_CATEGORIA_GASTO = {
     CategoriaCompra.OTROS_EGRESOS: RubroGasto.OTROS_GASTOS_OPERATIVOS,
 }
 CATEGORIAS_GASTO_OPERATIVO = list(RUBRO_DE_CATEGORIA_GASTO)
+# Categorías de compra que son gasto bancario, y su renglón en Gastos Bancarios.
+RUBRO_BANCARIO_DE_CATEGORIA = {CategoriaCompra.GASTO_BANCARIO: RubroGasto.COMISIONES_BANCARIAS}
+# Categorías que no se asignan a ningún servicio (Servicio Asignado = N/A).
+CATEGORIAS_SIN_SERVICIO = CATEGORIAS_GASTO_OPERATIVO + list(RUBRO_BANCARIO_DE_CATEGORIA)
 
 
 MESES = [
