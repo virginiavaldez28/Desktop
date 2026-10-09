@@ -92,6 +92,15 @@ Después se entra con el navegador a <http://localhost:8000>. Los datos quedan e
 
 ## 4. Instalación en un servidor (producción)
 
+### PythonAnywhere (plan gratuito)
+
+1. En **Consoles → Bash**: `git clone https://github.com/virginiavaldez28/Desktop.git valpob && cd valpob && bash deploy/pythonanywhere_instalar.sh`. El script arma el entorno, crea `.env` con una clave secreta propia (no se sube a GitHub), prepara la base y muestra los datos para el paso siguiente.
+2. En **Web → Add a new web app → Manual configuration → Python 3.11**, completá *Source code*, *Working directory*, *Virtualenv* y el *Static files* (`/static/`) con lo que mostró el script, reemplazá el archivo WSGI por el texto que imprimió y activá **Force HTTPS**. Después, **Reload**.
+3. Creá tu usuario: `~/.virtualenvs/valpob/bin/python manage.py createsuperuser` (en la carpeta `valpob`).
+4. Carga inicial: subí los Excel a `~/datos` (pestaña *Files*) y ejecutá `bash deploy/pythonanywhere_cargar_datos.sh`.
+5. Para actualizar a una versión nueva: `git pull`, `bash deploy/pythonanywhere_instalar.sh` y **Reload** en la pestaña Web.
+
+
 Se recomienda un servidor chico en la nube: cualquier VPS Linux con 1 GB de RAM alcanza (DigitalOcean, Hetzner, Contabo, Donweb, etc.). También sirve una PC de la oficina encendida todo el día. Hace falta tener instalado **Docker**.
 
 ```
