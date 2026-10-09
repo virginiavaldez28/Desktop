@@ -280,7 +280,7 @@ class LiquidacionNominaAdmin(CargaMensualAdmin):
     fieldsets = (
         (None, {"fields": ("persona", "periodo", "mano_obra_directa", "asignacion", "porcentaje_afectacion", "regimen")}),
         ("Costo del período", {"fields": ("haberes", "contribuciones_patronales", "sindicato_mutual", "honorarios",
-                                          "pagos_transferencia")}),
+                                          "pagos_transferencia", "beneficios_adicionales")}),
         ("Fecha de pago (para el Flujo de fondos)", {"fields": ("haberes_pagados_en_el_mes",)}),
         (None, {"fields": ("observaciones",)}),
         ("Auditoría", {"fields": BaseAdmin.campos_auditoria, "classes": ("collapse",)}),
@@ -320,16 +320,16 @@ class CompraAdmin(ImportesConIvaMixin, CargaMensualAdmin):
     total_campo = "neto"
     list_display = (
         "fecha", "proveedor", "tipo_comprobante", "punto_venta", "numero", "periodo",
-        "categoria", "servicio_asignado", "neto_fmt", "iva_fmt", "total_fmt",
+        "categoria", "servicio_asignado", "tipo_costo", "neto_fmt", "iva_fmt", "total_fmt",
     )
-    list_filter = ("periodo", "categoria", "servicio_asignado")
+    list_filter = ("periodo", "categoria", "servicio_asignado", "tipo_costo")
     search_fields = ("proveedor__nombre", "numero", "observaciones")
     autocomplete_fields = ("proveedor",)
     list_select_related = ("periodo", "proveedor")
     date_hierarchy = "fecha"
     fieldsets = (
         ("Comprobante", {"fields": ("fecha", "proveedor", "tipo_comprobante", "punto_venta", "numero", "periodo")}),
-        ("Clasificación", {"fields": ("categoria", "servicio_asignado", "neto", "iva", "observaciones")}),
+        ("Clasificación", {"fields": ("categoria", "servicio_asignado", "tipo_costo", "neto", "iva", "observaciones")}),
         ("Auditoría", {"fields": BaseAdmin.campos_auditoria, "classes": ("collapse",)}),
     )
 

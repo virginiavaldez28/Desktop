@@ -270,6 +270,11 @@ class LiquidacionNomina(Auditable):
         help_text="Lo que se paga aparte del recibo y de la factura, por transferencia. Se toma como pagado el mes "
                   "siguiente, junto con los sueldos del período.",
     )
+    beneficios_adicionales = campo_monto(
+        "beneficios adicionales", default=Decimal("0"),
+        help_text="Pagos que hace la empresa a cuenta de la persona (ej. cuotas de sus planes de ARCA debitadas de la "
+                  "cuenta de la empresa). Suman al costo del período y se toman como pagados en el mismo mes.",
+    )
     haberes_pagados_en_el_mes = campo_monto(
         "haberes pagados dentro del mismo mes", default=Decimal("0"),
         help_text="Sólo para quienes cobran por quincena (UOCRA): el importe bruto de la 1ª quincena, que se paga "
@@ -294,7 +299,7 @@ class LiquidacionNomina(Auditable):
     @property
     def total_mes(self):
         return (self.haberes + self.contribuciones_patronales + self.sindicato_mutual + self.honorarios
-                + self.pagos_transferencia)
+                + self.pagos_transferencia + self.beneficios_adicionales)
 
     @property
     def asignado_servicio(self):

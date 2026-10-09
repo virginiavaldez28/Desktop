@@ -564,12 +564,14 @@ class PagosPersonal:
     sindicatos_periodo_anterior: Decimal = CERO
     transferencias_periodo_anterior: Decimal = CERO  # pagos fuera de recibo del período anterior
     honorarios_del_mes: Decimal = CERO
+    beneficios_del_mes: Decimal = CERO  # beneficios adicionales (se pagan en el mes)
     falta_periodo_anterior: bool = False
 
     @property
     def total(self):
         return (self.quincenas_del_mes + self.sueldos_periodo_anterior + self.contribuciones_periodo_anterior
-                + self.sindicatos_periodo_anterior + self.transferencias_periodo_anterior + self.honorarios_del_mes)
+                + self.sindicatos_periodo_anterior + self.transferencias_periodo_anterior + self.honorarios_del_mes
+                + self.beneficios_del_mes)
 
 
 def periodo_anterior(periodo):
@@ -590,6 +592,7 @@ def pagos_personal(periodo) -> PagosPersonal:
         pct = r.porcentaje_afectacion / CIEN
         p.quincenas_del_mes += r.haberes_pagados_en_el_mes * pct
         p.honorarios_del_mes += r.honorarios * pct
+        p.beneficios_del_mes += r.beneficios_adicionales * pct
     anterior = periodo_anterior(periodo)
     if anterior is None:
         p.falta_periodo_anterior = True

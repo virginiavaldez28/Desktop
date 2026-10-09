@@ -509,6 +509,7 @@ def flujo_personal(periodos):
         _seccion("PAGADO EN EL MES — DEL MISMO PERÍODO", n + 1),
         fila("1ª quincena (UOCRA)", [x.quincenas_del_mes for x in pagos], "detalle"),
         fila("Honorarios", [x.honorarios_del_mes for x in pagos], "detalle"),
+        fila("Beneficios adicionales", [x.beneficios_del_mes for x in pagos], "detalle"),
         fila("TOTAL PAGADO AL PERSONAL EN EL MES (percibido)", [x.total for x in pagos], "total"),
         _seccion("REFERENCIA: COSTO LABORAL DEVENGADO DEL PERÍODO", n + 1),
         fila("Costo laboral del período (Estado de Resultados)",
