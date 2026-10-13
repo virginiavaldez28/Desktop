@@ -145,15 +145,18 @@ def propuesta(periodo, grupo):
 
 
 @transaction.atomic
-def aplicar(periodo, grupo, usuario):
+def aplicar(periodo, grupo, usuario, personas=None):
     """Graba la propuesta en todos los renglones de cada persona (las que trabajan en dos servicios llevan
-    el importe completo en cada renglón, con su %). Devuelve la cantidad de personas actualizadas."""
+    el importe completo en cada renglón, con su %). Si se pasa `personas` (ids), sólo se aplica a ésas.
+    Devuelve la cantidad de personas actualizadas."""
     prop = propuesta(periodo, grupo)
     campo = GRUPOS[grupo]["campo"]
     nombres_docs = ", ".join(d.nombre_archivo for d in prop.documentos)
     hoy = timezone.localdate().strftime("%d/%m/%Y")
     cambiadas = 0
     for fila in prop.con_cambios:
+        if personas is not None and fila.persona.pk not in personas:
+            continue
         for r in LiquidacionNomina.objects.filter(periodo=periodo, persona=fila.persona):
             setattr(r, campo, fila.nuevo)
             if fila.nuevo_del_mes is not None:

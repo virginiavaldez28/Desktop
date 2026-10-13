@@ -264,7 +264,11 @@ def nomina_documentos_aplicar(request, anio, mes, grupo):
         raise Http404
     periodo, puede_editar = _contexto_mes(request, anio, mes, editar=request.method == "POST")
     if request.method == "POST":
-        cambiadas, _ = docs.aplicar(periodo, grupo, request.user)
+        personas = {int(pk) for pk in request.POST.getlist("persona") if pk.isdigit()}
+        if not personas:
+            messages.warning(request, "No marcaste ninguna persona: no se cambió nada.")
+            return redirect("nomina_documentos_aplicar", anio=anio, mes=mes, grupo=grupo)
+        cambiadas, _ = docs.aplicar(periodo, grupo, request.user, personas=personas)
         messages.success(request, f"{docs.GRUPOS[grupo]['titulo']}: se actualizaron {cambiadas} personas en la nómina de "
                                   f"{periodo}. Podés seguir modificando cualquier importe a mano.")
         return redirect("nomina_mes", anio=anio, mes=mes)

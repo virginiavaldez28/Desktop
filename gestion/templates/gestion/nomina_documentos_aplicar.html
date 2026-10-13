@@ -12,11 +12,12 @@
   {% for e in prop.errores %}<div class="aviso error">{{ e }}</div>{% endfor %}
   {% for a in prop.avisos %}<div class="aviso">{{ a }}</div>{% endfor %}
 
+  <form method="post" id="form-aplicar">{% csrf_token %}</form>
   <div class="contenedor-tabla">
     <table class="reporte">
       <thead><tr>
         <th>Persona</th><th>CUIL</th><th>Actual</th><th>Según documentos</th><th>Diferencia</th>
-        {% if grupo == "haberes" %}<th>1ª quincena actual</th><th>1ª quincena nueva</th>{% endif %}<th>Detalle</th>
+        {% if grupo == "haberes" %}<th>1ª quincena actual</th><th>1ª quincena nueva</th>{% endif %}<th>Detalle</th><th>Aplicar</th>
       </tr></thead>
       <tbody>
         {% for f in prop.filas %}
@@ -27,10 +28,11 @@
             <td class="{% if f.diferencia and f.diferencia < 0 %}negativo{% endif %}">{% if f.diferencia %}{{ f.diferencia|moneda }}{% endif %}</td>
             {% if grupo == "haberes" %}<td>{{ f.actual_del_mes|moneda }}</td><td>{% if f.nuevo_del_mes is not None %}{{ f.nuevo_del_mes|moneda }}{% endif %}</td>{% endif %}
             <td class="texto-chico">{{ f.detalle }}</td>
+            <td>{% if f.cambia %}<input type="checkbox" name="persona" value="{{ f.persona.pk }}" form="form-aplicar" checked aria-label="Aplicar a {{ f.persona }}">{% endif %}</td>
           </tr>
         {% endfor %}
       </tbody>
-      <tfoot><tr class="total"><td colspan="2">TOTAL de las personas que figuran en los documentos</td><td>{{ prop.total_actual|moneda }}</td><td>{{ prop.total_nuevo|moneda }}</td><td></td>{% if grupo == "haberes" %}<td></td><td></td>{% endif %}<td></td></tr></tfoot>
+      <tfoot><tr class="total"><td colspan="2">TOTAL de las personas que figuran en los documentos</td><td>{{ prop.total_actual|moneda }}</td><td>{{ prop.total_nuevo|moneda }}</td><td></td>{% if grupo == "haberes" %}<td></td><td></td>{% endif %}<td></td><td></td></tr></tfoot>
     </table>
   </div>
 
@@ -45,10 +47,11 @@
     </table></div>
   {% endif %}
 
-  <p class="nota">{{ prop.con_cambios|length }} persona{{ prop.con_cambios|length|pluralize }} con cambios.</p>
+  <p class="nota">{{ prop.con_cambios|length }} persona{{ prop.con_cambios|length|pluralize }} con cambios.
+    Destildá en la columna "Aplicar" a quien no quieras modificar; a esa persona no se le cambia nada.</p>
   <div class="acciones-pie">
     {% if puede_editar and prop.con_cambios %}
-      <form method="post">{% csrf_token %}<button type="submit" class="boton boton-principal">Aplicar a la nómina de {{ periodo }}</button></form>
+      <button type="submit" form="form-aplicar" class="boton boton-principal">Aplicar lo marcado a la nómina de {{ periodo }}</button>
     {% endif %}
     <a class="boton" href="{% url 'nomina_documentos' periodo.anio periodo.mes %}">Volver a los documentos</a>
     <a class="boton" href="{% url 'nomina_mes' periodo.anio periodo.mes %}">Ver la nómina</a>

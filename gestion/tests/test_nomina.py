@@ -152,7 +152,11 @@ class NominaTest(TestCase):
             self.assertEqual(len(prop.con_cambios), 2)
             self.assertEqual(prop.sin_renglon, [("20999999999", "Sin Renglón", D("14"))])
             self.assertEqual(self.client.get("/nomina/2026-8/documentos/contribuciones/").status_code, 200)
-            r = self.client.post("/nomina/2026-8/documentos/contribuciones/")
+            self.client.post("/nomina/2026-8/documentos/contribuciones/")  # sin personas marcadas no cambia nada
+            self.r_ana.refresh_from_db()
+            self.assertEqual(self.r_ana.contribuciones_patronales, D("0"))
+            r = self.client.post("/nomina/2026-8/documentos/contribuciones/",
+                                 {"persona": [self.ana.pk, self.beto.pk]})
         self.assertEqual(r.status_code, 302)
         self.r_ana.refresh_from_db()
         self.assertEqual(self.r_ana.contribuciones_patronales, D("200"))
@@ -162,6 +166,22 @@ class NominaTest(TestCase):
             r.refresh_from_db()
             self.assertEqual(r.contribuciones_patronales, D("100.50"))
         self.assertFalse(DocumentoNomina.objects.filter(aplicado_en__isnull=True).exists())
+
+    def test_aplicar_solo_a_las_personas_marcadas(self):
+        u = self.usuario(CARGA_PERSONAL)
+        self.documento(DocumentoNomina.Tipo.F931)
+
+        def leer(doc, texto=None):
+            lectura = lectores.Lectura()
+            lectura.importes["27111111111"] = D("100")
+            lectura.importes["20222222222"] = D("50")
+            return lectura
+
+        with mock.patch.object(docs, "leer_documento", side_effect=leer):
+            self.client.post("/nomina/2026-8/documentos/contribuciones/", {"persona": [self.beto.pk]})
+        self.r_ana.refresh_from_db()
+        self.r_beto1.refresh_from_db()
+        self.assertEqual((self.r_ana.contribuciones_patronales, self.r_beto1.contribuciones_patronales), (D("0"), D("50")))
 
     def test_haberes_usa_recibos_si_tambien_hay_libro(self):
         self.usuario(CARGA_PERSONAL)
@@ -213,6 +233,9 @@ RECIBO = """
 LIBRO = """079
 27-11111111-1
 PRUEBA, ANA
+024 - Personal de la construcción Ley N°22250
+0545/08 - UOCRA -UNION OBRERA DE LA CONSTRUCCIÒN
+7129 - Oficiales y operarios de la construcción (obra gruesa
 002 - HORAS NORMALES
 80,00
 $
@@ -230,7 +253,7 @@ $
 122.725,46
 0,00
 0,00 233 - VIANDAS
-545/08
+S/545/08
 10,00
 $
 0,00
@@ -262,7 +285,8 @@ class CruceRecibosLibroTest(TestCase):
         l = lectores.leer_lsd(LIBRO, primera_quincena=True)
         self.assertEqual(l.importes["27111111111"], D("500287.75"))
         self.assertEqual(sum(v for _, v in l.conceptos["27111111111"].values()), D("500287.75"))
-        self.assertEqual(l.conceptos["27111111111"]["233"][0], "VIANDAS 545/08")
+        self.assertEqual(l.conceptos["27111111111"]["233"][0], "VIANDAS S/545/08")
+        self.assertEqual(sorted(l.conceptos["27111111111"]), ["002", "016", "021", "233"])
 
     @override_settings(MEDIA_ROOT=MEDIA)
     def test_cruce_muestra_diferencias_por_concepto(self):

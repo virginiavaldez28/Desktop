@@ -177,9 +177,11 @@ def leer_lsd(texto, primera_quincena=False):
             if rem:
                 haberes = _ar(rem.group(1)) + (_ar(no_rem.group(1)) if no_rem else CERO)
                 lectura.importes[cuil] += haberes
+                # La descripción puede ocupar dos renglones; los renglones de la ficha (modalidad, convenio,
+                # puesto: "024 - Personal de la construcción…") no se toman como conceptos.
                 _sumar_conceptos(lectura, cuil, [
                     (c.group(1), " ".join(c.group(2).split()), _ar(c.group(3)) + _ar(c.group(4)))
-                    for c in re.finditer(r"\b(\d{3}) - ([^$]+?)\n[\d.,]+\n\$\n([\d.,-]+)\n([\d.,-]+)\n[\d.,-]+", b)
+                    for c in re.finditer(r"\b(\d{3}) - ([^\n$]+(?:\n(?!\s*[\d/]+ - )[^\n$]+)?)\n[\d.,]+\n\$\n([\d.,-]+)\n([\d.,-]+)\n[\d.,-]+", b)
                 ])
                 if primera_quincena:
                     lectura.del_mes[cuil] += haberes
