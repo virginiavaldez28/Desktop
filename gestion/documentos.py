@@ -43,7 +43,8 @@ def leer_documento(doc, texto=None):
     if doc.tipo == T.F931:
         return lectores.leer_f931(texto)
     if doc.tipo == T.RECIBOS:
-        return lectores.leer_recibos(texto)
+        periodo = doc.periodo if doc.periodo_id else None
+        return lectores.leer_recibos(texto, *((periodo.anio, periodo.mes) if periodo else ()))
     if doc.tipo == T.LSD:
         return lectores.leer_lsd(texto, primera_quincena=doc.primera_quincena)
     if doc.tipo == T.SINDICATO_SPP:

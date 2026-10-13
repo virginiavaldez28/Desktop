@@ -282,6 +282,9 @@ class CruceRecibosLibroTest(TestCase):
         self.assertEqual(r.del_mes["27111111111"], D("466817.17"))
         self.assertEqual(r.conceptos["27111111111"]["016"][1], D("-1000.00"))
         self.assertNotIn("241", r.conceptos["27111111111"])
+        # Con el mes liquidado, cuenta la fecha de pago del recibo (18/08/26).
+        self.assertEqual(lectores.leer_recibos(RECIBO, 2026, 8).del_mes["27111111111"], D("466817.17"))
+        self.assertEqual(lectores.leer_recibos(RECIBO, 2026, 7).del_mes.get("27111111111", D("0")), D("0"))
         l = lectores.leer_lsd(LIBRO, primera_quincena=True)
         self.assertEqual(l.importes["27111111111"], D("500287.75"))
         self.assertEqual(sum(v for _, v in l.conceptos["27111111111"].values()), D("500287.75"))

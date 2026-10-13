@@ -119,16 +119,20 @@ def _sumar_conceptos(lectura, cuil, conceptos):
         actual[1] += importe
 
 
-def leer_recibos(texto):
-    """Haberes brutos (SubT) de cada recibo. Los recibos de 1ª quincena se marcan como pagados en el mes."""
+def leer_recibos(texto, anio=None, mes=None):
+    """Haberes brutos (SubT) de cada recibo.
+
+    Con el mes liquidado (`anio`, `mes`), un recibo cuenta como pagado en el mismo mes si su fecha de pago cae
+    en ese mes (1ª quincena, liquidaciones finales pagadas en el mes); sin el mes, sólo los de 1ª quincena."""
     partes = re.split(r"\n(?= *(?:GROUP VALPOB S\.R\.L\.|GLOBAL GROUP S\.A\.S\.)\n)", "\n" + texto)
     vistos = {}
     for bloque in partes:
         m = re.search(r"\|\d\d +(\d{3}) (.+?) +DU +[\d.]+ +[\d/]+ +(\d{11})\|", bloque)
         if not m:
             continue
-        per = re.search(r"\n\|[\d/]{8} \S+ +(.+?) *\|\n", bloque)
-        periodo = per.group(1).strip() if per else ""
+        per = re.search(r"\n\|(\d\d)/(\d\d)/(\d\d) \S+ +(.+?) *\|\n", bloque)
+        periodo = per.group(4).strip() if per else ""
+        pago = (2000 + int(per.group(3)), int(per.group(2))) if per else None
         sub = re.search(r"SubT +([\d.]+) +([\d.]+)", bloque)
         if sub:
             haberes = Decimal(sub.group(1))
@@ -138,14 +142,18 @@ def leer_recibos(texto):
         conceptos = [(c.group(1), c.group(2).strip(), Decimal(c.group(3))) for c in re.finditer(
             r"\|(\d{3})\|(.{25})\|[^|]*\|[^|]*\| *(-?[\d.]+)\|", bloque)]
         # los recibos vienen duplicados (original y copia)
-        vistos[(m.group(3), periodo)] = (m.group(2).strip(), haberes, conceptos)
+        vistos[(m.group(3), periodo)] = (m.group(2).strip(), haberes, conceptos, pago)
     if not vistos:
         raise ErrorLectura("No encontré recibos en el PDF.")
     lectura = Lectura()
-    for (cuil, periodo), (nombre, haberes, conceptos) in vistos.items():
+    for (cuil, periodo), (nombre, haberes, conceptos, pago) in vistos.items():
         lectura.importes[cuil] += haberes
         _sumar_conceptos(lectura, cuil, conceptos)
-        if re.search(r"1(er|ra)\.? ?QUINCENA", periodo, re.I):
+        if anio and mes and pago:
+            del_mes = pago == (anio, mes)
+        else:
+            del_mes = bool(re.search(r"1(er|ra)\.? ?QUINCENA", periodo, re.I))
+        if del_mes:
             lectura.del_mes[cuil] += haberes
         lectura.nombres[cuil] = nombre
         lectura.detalle[cuil] = (lectura.detalle.get(cuil, "") + f" Recibo {periodo}: {haberes}.").strip()
