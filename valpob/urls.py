@@ -8,6 +8,7 @@ urlpatterns = [
     path("reportes/<slug:nombre>/", views.reporte, name="reporte"),
     path("nomina/", nomina.nomina_ultimo_mes, name="nomina"),
     path("nomina/<int:anio>-<int:mes>/", nomina.nomina_mes, name="nomina_mes"),
+    path("nomina/documentos/", nomina.documentos_ultimo_mes, name="documentos_nomina"),
     path("nomina/<int:anio>-<int:mes>/documentos/", nomina.nomina_documentos, name="nomina_documentos"),
     path("nomina/<int:anio>-<int:mes>/documentos/<slug:grupo>/", nomina.nomina_documentos_aplicar,
          name="nomina_documentos_aplicar"),

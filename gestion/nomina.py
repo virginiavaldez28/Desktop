@@ -116,6 +116,15 @@ def nomina_ultimo_mes(request):
 
 
 @login_required
+def documentos_ultimo_mes(request):
+    periodos = _periodos()
+    if not periodos:
+        return redirect("admin:gestion_periodo_changelist")
+    p = periodos[-1]
+    return redirect("nomina_documentos", anio=p.anio, mes=p.mes)
+
+
+@login_required
 def nomina_mes(request, anio, mes):
     if not request.user.has_perm("gestion.view_liquidacionnomina"):
         raise PermissionDenied("No tenés permiso para ver la nómina.")
