@@ -53,6 +53,8 @@ class Lectura:
     del_mes: dict = field(default_factory=lambda: defaultdict(lambda: CERO))
     nombres: dict = field(default_factory=dict)
     detalle: dict = field(default_factory=dict)  # texto explicativo por CUIL
+    # Haberes por concepto (recibos y Libro de Sueldos): {cuil: {código: [descripción, importe]}}.
+    conceptos: dict = field(default_factory=lambda: defaultdict(dict))
     resumen: str = ""
 
 
@@ -108,6 +110,15 @@ def leer_f931(texto):
 # Recibos de sueldo
 # ---------------------------------------------------------------------------
 
+def _sumar_conceptos(lectura, cuil, conceptos):
+    """Acumula los haberes por código de concepto (los descuentos, con importe 0, no se guardan)."""
+    for codigo, descripcion, importe in conceptos:
+        if not importe:
+            continue
+        actual = lectura.conceptos[cuil].setdefault(codigo, [descripcion, CERO])
+        actual[1] += importe
+
+
 def leer_recibos(texto):
     """Haberes brutos (SubT) de cada recibo. Los recibos de 1ª quincena se marcan como pagados en el mes."""
     partes = re.split(r"\n(?= *(?:GROUP VALPOB S\.R\.L\.|GLOBAL GROUP S\.A\.S\.)\n)", "\n" + texto)
@@ -123,13 +134,17 @@ def leer_recibos(texto):
             haberes = Decimal(sub.group(1))
         else:
             haberes = sum((Decimal(c.group(1) or 0) for c in re.finditer(
-                r"\|\d{3}\|.{25}\|[^|]*\|[^|]*\| *([\d.]*)\| *[\d.]*\|", bloque)), CERO)
-        vistos[(m.group(3), periodo)] = (m.group(2).strip(), haberes)  # los recibos vienen duplicados (original y copia)
+                r"\|\d{3}\|.{25}\|[^|]*\|[^|]*\| *(-?[\d.]*)\| *[\d.]*\|", bloque)), CERO)
+        conceptos = [(c.group(1), c.group(2).strip(), Decimal(c.group(3))) for c in re.finditer(
+            r"\|(\d{3})\|(.{25})\|[^|]*\|[^|]*\| *(-?[\d.]+)\|", bloque)]
+        # los recibos vienen duplicados (original y copia)
+        vistos[(m.group(3), periodo)] = (m.group(2).strip(), haberes, conceptos)
     if not vistos:
         raise ErrorLectura("No encontré recibos en el PDF.")
     lectura = Lectura()
-    for (cuil, periodo), (nombre, haberes) in vistos.items():
+    for (cuil, periodo), (nombre, haberes, conceptos) in vistos.items():
         lectura.importes[cuil] += haberes
+        _sumar_conceptos(lectura, cuil, conceptos)
         if re.search(r"1(er|ra)\.? ?QUINCENA", periodo, re.I):
             lectura.del_mes[cuil] += haberes
         lectura.nombres[cuil] = nombre
@@ -162,6 +177,10 @@ def leer_lsd(texto, primera_quincena=False):
             if rem:
                 haberes = _ar(rem.group(1)) + (_ar(no_rem.group(1)) if no_rem else CERO)
                 lectura.importes[cuil] += haberes
+                _sumar_conceptos(lectura, cuil, [
+                    (c.group(1), " ".join(c.group(2).split()), _ar(c.group(3)) + _ar(c.group(4)))
+                    for c in re.finditer(r"\b(\d{3}) - ([^$]+?)\n[\d.,]+\n\$\n([\d.,-]+)\n([\d.,-]+)\n[\d.,-]+", b)
+                ])
                 if primera_quincena:
                     lectura.del_mes[cuil] += haberes
                 lectura.nombres[cuil] = nombre

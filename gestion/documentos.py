@@ -110,7 +110,7 @@ def propuesta(periodo, grupo):
     documentos = list(DocumentoNomina.objects.filter(periodo=periodo, tipo__in=g["tipos"]).order_by("creado_en"))
     prop = Propuesta(grupo=grupo, documentos=documentos)
     if grupo == "haberes" and any(d.tipo == T.RECIBOS for d in documentos) and any(d.tipo == T.LSD for d in documentos):
-        prop.avisos.append("Hay recibos y Libro de Sueldos del mismo mes: se usan sólo los recibos, para no sumar dos veces.")
+        prop.avisos.append("Hay recibos y Libro de Sueldos del mismo mes: para la nómina se usan sólo los recibos (más abajo está el control cruzado entre los dos).")
         documentos = [d for d in documentos if d.tipo == T.RECIBOS]
     importes, del_mes, detalle, nombres = defaultdict(lambda: CERO), defaultdict(lambda: CERO), defaultdict(list), {}
     for doc in documentos:
@@ -165,3 +165,87 @@ def aplicar(periodo, grupo, usuario):
         cambiadas += 1
     DocumentoNomina.objects.filter(pk__in=[d.pk for d in prop.documentos]).update(aplicado_en=timezone.now())
     return cambiadas, prop
+
+
+# ---------------------------------------------------------------------------
+# Control cruzado: recibos de sueldo contra Libro de Sueldos Digital
+# ---------------------------------------------------------------------------
+
+@dataclass
+class DiferenciaCruce:
+    cuil: str
+    nombre: str
+    recibos: Decimal = None  # None: la persona no figura en ese documento
+    libro: Decimal = None
+    recibos_del_mes: Decimal = CERO
+    libro_del_mes: Decimal = CERO
+    conceptos: list = field(default_factory=list)  # (código, descripción, recibos, libro, diferencia)
+
+    @property
+    def diferencia(self):
+        return (self.recibos or CERO) - (self.libro or CERO)
+
+    @property
+    def diferencia_del_mes(self):
+        return self.recibos_del_mes - self.libro_del_mes
+
+
+@dataclass
+class Cruce:
+    diferencias: list = field(default_factory=list)
+    personas: int = 0
+    errores: list = field(default_factory=list)
+
+    @property
+    def hay_diferencias(self):
+        return bool(self.diferencias)
+
+
+def _leer_y_sumar(documentos, errores):
+    total = lectores.Lectura()
+    for doc in documentos:
+        try:
+            lectura = leer_documento(doc)
+        except Exception as error:
+            errores.append(f"{doc.nombre_archivo}: {error}")
+            continue
+        for cuil, valor in lectura.importes.items():
+            total.importes[cuil] += valor
+            total.del_mes[cuil] += lectura.del_mes.get(cuil, CERO)
+            total.nombres.setdefault(cuil, lectura.nombres.get(cuil, ""))
+            lectores._sumar_conceptos(total, cuil, [(c, d, v) for c, (d, v) in lectura.conceptos.get(cuil, {}).items()])
+    return total
+
+
+def cruce_recibos_libro(periodo):
+    """Compara, persona por persona y concepto por concepto, los recibos del mes con el Libro de Sueldos.
+    Devuelve None si en el mes no están subidos los dos."""
+    documentos = list(DocumentoNomina.objects.filter(periodo=periodo, tipo__in=[T.RECIBOS, T.LSD]).order_by("creado_en"))
+    recibos = [d for d in documentos if d.tipo == T.RECIBOS]
+    libro = [d for d in documentos if d.tipo == T.LSD]
+    if not recibos or not libro:
+        return None
+    cruce = Cruce()
+    r = _leer_y_sumar(recibos, cruce.errores)
+    l = _leer_y_sumar(libro, cruce.errores)
+    cuiles = sorted(set(r.importes) | set(l.importes), key=lambda c: r.nombres.get(c) or l.nombres.get(c) or c)
+    cruce.personas = len(cuiles)
+    for cuil in cuiles:
+        d = DiferenciaCruce(
+            cuil=cuil, nombre=r.nombres.get(cuil) or l.nombres.get(cuil, ""),
+            recibos=r.importes[cuil] if cuil in r.importes else None,
+            libro=l.importes[cuil] if cuil in l.importes else None,
+            recibos_del_mes=r.del_mes.get(cuil, CERO), libro_del_mes=l.del_mes.get(cuil, CERO),
+        )
+        falta = d.recibos is None or d.libro is None
+        if not falta and abs(d.diferencia) < TOLERANCIA and abs(d.diferencia_del_mes) < TOLERANCIA:
+            continue
+        cr, cl = r.conceptos.get(cuil, {}), l.conceptos.get(cuil, {})
+        for codigo in sorted(set(cr) | set(cl)):
+            vr = cr[codigo][1] if codigo in cr else CERO
+            vl = cl[codigo][1] if codigo in cl else CERO
+            if abs(vr - vl) >= TOLERANCIA:
+                descripcion = (cl.get(codigo) or cr.get(codigo))[0]
+                d.conceptos.append((codigo, descripcion, vr, vl, vr - vl))
+        cruce.diferencias.append(d)
+    return cruce

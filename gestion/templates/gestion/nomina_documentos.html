@@ -30,6 +30,11 @@
 
   {% for g in grupos %}
     <h2>{{ g.titulo }}</h2>
+    {% if g.clave == "haberes" and cruce %}
+      {% if aviso_cruce %}<div class="aviso error">{{ aviso_cruce }}
+        <a href="{% url 'nomina_documentos_aplicar' periodo.anio periodo.mes 'haberes' %}#control-cruzado">Ver el detalle</a></div>
+      {% else %}<div class="aviso">Control cruzado: recibos y Libro de Sueldos coinciden.</div>{% endif %}
+    {% endif %}
     {% if g.documentos %}
       <div class="contenedor-tabla">
         <table class="reporte tabla-simple">

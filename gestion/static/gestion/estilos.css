@@ -167,6 +167,7 @@ h2 { font-size: 18px; margin: 24px 0 8px; }
 .grilla-nomina .errores { color: var(--negativo); font-size: 12px; white-space: normal; max-width: 260px; }
 .grilla-nomina tfoot td { text-align: right; }
 .aviso.error { border-color: var(--negativo); color: var(--negativo); }
+table.cruce tr.concepto td { font-size: 12.5px; color: var(--texto-suave, inherit); }
 .formulario { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 18px; }
 .formulario label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--texto-2); }
 .formulario input, .formulario select, .formulario textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--superficie); color: var(--texto); }

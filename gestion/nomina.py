@@ -219,6 +219,12 @@ def _contexto_mes(request, anio, mes, editar=False):
     return periodo, puede_editar
 
 
+def _aviso_cruce(cruce):
+    n = len(cruce.diferencias)
+    return (f"Control cruzado: los recibos y el Libro de Sueldos no coinciden en {n} persona{'s' if n != 1 else ''}. "
+            "Revisá el detalle por concepto antes de aplicar.")
+
+
 @login_required
 def nomina_documentos(request, anio, mes):
     periodo, puede_editar = _contexto_mes(request, anio, mes)
@@ -233,6 +239,10 @@ def nomina_documentos(request, anio, mes):
             doc.save()
             messages.success(request, f"{doc.get_tipo_display()} subido: {form.lectura.resumen} "
                                       "Revisá los cambios y aplicalos en la nómina.")
+            if doc.tipo in (DocumentoNomina.Tipo.RECIBOS, DocumentoNomina.Tipo.LSD):
+                cruce = docs.cruce_recibos_libro(periodo)
+                if cruce and cruce.hay_diferencias:
+                    messages.warning(request, _aviso_cruce(cruce))
             return redirect("nomina_documentos_aplicar", anio=anio, mes=mes, grupo=docs.GRUPO_DE_TIPO[doc.tipo])
     else:
         form = DocumentoForm()
@@ -240,8 +250,10 @@ def nomina_documentos(request, anio, mes):
     for clave, g in docs.GRUPOS.items():
         grupos.append({"clave": clave, "titulo": g["titulo"],
                        "documentos": DocumentoNomina.objects.filter(periodo=periodo, tipo__in=g["tipos"]).select_related("creado_por")})
+    cruce = docs.cruce_recibos_libro(periodo)
     return render(request, "gestion/nomina_documentos.html", {
         "periodo": periodo, "periodos": _periodos(), "form": form, "grupos": grupos, "puede_editar": puede_editar,
+        "cruce": cruce, "aviso_cruce": _aviso_cruce(cruce) if cruce and cruce.hay_diferencias else "",
         "menu_reportes": MENU_REPORTES, "ve_reportes": puede_ver_reportes(request.user), "nombre": "nomina",
     })
 
@@ -258,6 +270,7 @@ def nomina_documentos_aplicar(request, anio, mes, grupo):
         return redirect("nomina_mes", anio=anio, mes=mes)
     return render(request, "gestion/nomina_documentos_aplicar.html", {
         "periodo": periodo, "prop": docs.propuesta(periodo, grupo), "grupo": grupo, "puede_editar": puede_editar,
+        "cruce": docs.cruce_recibos_libro(periodo) if grupo == "haberes" else None,
         "menu_reportes": MENU_REPORTES, "ve_reportes": puede_ver_reportes(request.user), "nombre": "nomina",
     })
 

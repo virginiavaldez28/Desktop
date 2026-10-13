@@ -8,6 +8,7 @@
     {% for d in prop.documentos %}{{ d.nombre_archivo }}{% if not forloop.last %}, {% endif %}{% endfor %}.
     Revisá los cambios: al aplicar se reemplaza el importe de cada persona en la nómina (en todos sus renglones del mes).
   </p>
+  {% if messages %}{% for m in messages %}<div class="aviso {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
   {% for e in prop.errores %}<div class="aviso error">{{ e }}</div>{% endfor %}
   {% for a in prop.avisos %}<div class="aviso">{{ a }}</div>{% endfor %}
 
@@ -32,6 +33,8 @@
       <tfoot><tr class="total"><td colspan="2">TOTAL de las personas que figuran en los documentos</td><td>{{ prop.total_actual|moneda }}</td><td>{{ prop.total_nuevo|moneda }}</td><td></td>{% if grupo == "haberes" %}<td></td><td></td>{% endif %}<td></td></tr></tfoot>
     </table>
   </div>
+
+  {% if cruce %}{% include "gestion/_cruce_recibos_libro.html" %}{% endif %}
 
   {% if prop.sin_renglon %}
     <h2>En los documentos pero sin renglón en la nómina de {{ periodo }}</h2>

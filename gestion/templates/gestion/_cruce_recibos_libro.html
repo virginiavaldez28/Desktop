@@ -1,0 +1,42 @@
+{% load formato %}
+<section id="control-cruzado">
+  <h2>Control cruzado: recibos contra Libro de Sueldos</h2>
+  {% for e in cruce.errores %}<div class="aviso error">{{ e }}</div>{% endfor %}
+  {% if cruce.hay_diferencias %}
+    <div class="aviso error">
+      Hay diferencias en {{ cruce.diferencias|length }} de {{ cruce.personas }} persona{{ cruce.personas|pluralize }}.
+      Para la nómina se usan los <strong>recibos</strong>; el Libro de Sueldos sólo se usa para este control.
+      Verificá cada caso antes de aplicar.
+    </div>
+    <div class="contenedor-tabla">
+      <table class="reporte cruce">
+        <thead><tr>
+          <th>Persona / concepto</th><th>Recibos</th><th>Libro de Sueldos</th><th>Diferencia (recibos − libro)</th>
+          <th>1ª quincena recibos</th><th>1ª quincena libro</th>
+        </tr></thead>
+        <tbody>
+          {% for d in cruce.diferencias %}
+            <tr class="rubro destacado">
+              <td>{{ d.nombre }} <small>({{ d.cuil }})</small></td>
+              <td>{% if d.recibos is None %}no figura{% else %}{{ d.recibos|moneda }}{% endif %}</td>
+              <td>{% if d.libro is None %}no figura{% else %}{{ d.libro|moneda }}{% endif %}</td>
+              <td class="{% if d.diferencia < 0 %}negativo{% endif %}">{{ d.diferencia|moneda }}</td>
+              <td>{{ d.recibos_del_mes|moneda }}</td><td>{{ d.libro_del_mes|moneda }}</td>
+            </tr>
+            {% for codigo, descripcion, vr, vl, dif in d.conceptos %}
+              <tr class="concepto">
+                <td>&nbsp;&nbsp;{{ codigo }} · {{ descripcion }}</td>
+                <td>{{ vr|moneda }}</td><td>{{ vl|moneda }}</td>
+                <td class="{% if dif < 0 %}negativo{% endif %}">{{ dif|moneda }}</td><td></td><td></td>
+              </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="nota">Los conceptos son los haberes (remunerativos y no remunerativos) sumando todos los recibos y libros del mes.
+      Si un mismo concepto tiene distinto importe, también cambian los que se calculan sobre él (zona, asistencia).</p>
+  {% else %}
+    <div class="aviso">Recibos y Libro de Sueldos coinciden para las {{ cruce.personas }} personas.</div>
+  {% endif %}
+</section>

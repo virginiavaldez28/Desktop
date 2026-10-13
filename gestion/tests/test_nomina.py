@@ -193,3 +193,100 @@ class LectoresTest(TestCase):
     def test_importes_argentinos(self):
         self.assertEqual(lectores._ar("1.234.567,89"), D("1234567.89"))
         self.assertEqual(lectores._ar("-50,10"), D("-50.10"))
+
+
+RECIBO = """
+          GROUP VALPOB S.R.L.
+|CC Lega. Apellido y Nombre             T   Documento    Ingreso   C.U.I.L.  |
+|01   079 PRUEBA, ANA                   DU    11.111.111 21/10/24 27111111111|
+|Fec.Pago Lugar de Pago                 Periodo Abonado                      |
+|18/08/26 NEUQUEN                       1er.QUINCENA DE AGOSTO DE 2026       |
+|Cto|Descripcion              | Unidades| Valor Unit.|   Haberes  |Apor/Contr|
+|002|HORAS NORMALES           |     80.0|     3095.07|   247605.60|          |
+|016|AUSENCIA HORAS           |      8.0|    -2847.61|    -1000.00|          |
+|021|HORAS VIAJE              |     16.0|     5578.43|    89254.88|          |
+|233|VIANDAS 545/08           |     10.0|    13095.67|   130956.69|          |
+|241|JUBILACION 11 %          |         |            |            |  80133.56|
+                                                 SubT    466817.17  80133.56
+"""
+
+LIBRO = """079
+27-11111111-1
+PRUEBA, ANA
+002 - HORAS NORMALES
+80,00
+$
+247.605,60
+0,00
+0,00 016 - AUSENCIA HORAS
+8,00
+$
+-1.000,00
+0,00
+0,00
+021 - HORA VIAJE
+22,00
+$
+122.725,46
+0,00
+0,00 233 - VIANDAS
+545/08
+10,00
+$
+0,00
+130.956,69
+0,00
+241 - JUBILACION 11 %
+0,00
+$
+0,00
+0,00
+-69.886,52
+Total Imp. Remunerados: 
+369.331,06
+Total Imp. No Remunerados: 130.956,69
+Total Deducciones: 
+"""
+
+
+class CruceRecibosLibroTest(TestCase):
+    def setUp(self):
+        self.periodo = Periodo.objects.create(anio=2026, mes=8)
+
+    def test_lectores_separan_conceptos(self):
+        r = lectores.leer_recibos(RECIBO)
+        self.assertEqual(r.importes["27111111111"], D("466817.17"))
+        self.assertEqual(r.del_mes["27111111111"], D("466817.17"))
+        self.assertEqual(r.conceptos["27111111111"]["016"][1], D("-1000.00"))
+        self.assertNotIn("241", r.conceptos["27111111111"])
+        l = lectores.leer_lsd(LIBRO, primera_quincena=True)
+        self.assertEqual(l.importes["27111111111"], D("500287.75"))
+        self.assertEqual(sum(v for _, v in l.conceptos["27111111111"].values()), D("500287.75"))
+        self.assertEqual(l.conceptos["27111111111"]["233"][0], "VIANDAS 545/08")
+
+    @override_settings(MEDIA_ROOT=MEDIA)
+    def test_cruce_muestra_diferencias_por_concepto(self):
+        for tipo in (DocumentoNomina.Tipo.RECIBOS, DocumentoNomina.Tipo.LSD):
+            doc = DocumentoNomina(periodo=self.periodo, tipo=tipo, primera_quincena=True)
+            doc.archivo.save("x.pdf", ContentFile(b"%PDF"), save=True)
+        with \
+                mock.patch.object(docs, "leer_documento", side_effect=lambda doc, texto=None: (
+                    lectores.leer_recibos(RECIBO) if doc.tipo == DocumentoNomina.Tipo.RECIBOS
+                    else lectores.leer_lsd(LIBRO, primera_quincena=True))):
+            cruce = docs.cruce_recibos_libro(self.periodo)
+            u = User.objects.create_user("carga", password="x", is_staff=True)
+            u.groups.set(Group.objects.filter(name=CARGA_PERSONAL))
+            self.client.force_login(u)
+            with override_settings(ALLOWED_HOSTS=["testserver"]):
+                pagina = self.client.get("/nomina/2026-8/documentos/haberes/").content.decode()
+                listado = self.client.get("/nomina/2026-8/documentos/").content.decode()
+        self.assertIn("021 · HORA VIAJE", pagina)
+        self.assertIn("no coinciden en 1 persona", listado)
+        self.assertTrue(cruce.hay_diferencias)
+        d = cruce.diferencias[0]
+        self.assertEqual(d.diferencia, D("-33470.58"))
+        self.assertEqual(d.diferencia_del_mes, D("-33470.58"))
+        self.assertEqual(d.conceptos, [("021", "HORA VIAJE", D("89254.88"), D("122725.46"), D("-33470.58"))])
+
+    def test_sin_los_dos_documentos_no_hay_cruce(self):
+        self.assertIsNone(docs.cruce_recibos_libro(self.periodo))
