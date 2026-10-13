@@ -267,8 +267,8 @@ class LiquidacionNomina(Auditable):
     honorarios = campo_monto("honorarios (monotributistas)", default=Decimal("0"))
     pagos_transferencia = campo_monto(
         "pagos por transferencia (fuera de recibo)", default=Decimal("0"),
-        help_text="Lo que se paga aparte del recibo y de la factura, por transferencia. Se toma como pagado el mes "
-                  "siguiente, junto con los sueldos del período.",
+        help_text="Lo que se paga aparte del recibo y de la factura, por transferencia. Se paga en el mismo mes, junto "
+                  "con los honorarios.",
     )
     beneficios_adicionales = campo_monto(
         "beneficios adicionales", default=Decimal("0"),

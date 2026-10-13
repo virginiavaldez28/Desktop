@@ -198,7 +198,7 @@ class FlujoPersonalTest(TestCase):
         self.assertEqual(pagos.honorarios_del_mes, D("10"))
         self.assertEqual(pagos.total, D("4960"))
 
-    def test_pagos_por_transferencia_suman_al_costo_y_se_pagan_el_mes_siguiente(self):
+    def test_pagos_por_transferencia_suman_al_costo_y_se_pagan_con_los_honorarios(self):
         from gestion.calculos import pagos_personal
 
         junio = Periodo.objects.create(anio=2026, mes=6, solo_flujo=True)
@@ -211,7 +211,7 @@ class FlujoPersonalTest(TestCase):
             )
         self.assertEqual(calcular_mes(julio).er.sueldos_administracion, D("155"))
         pagos = pagos_personal(julio)
-        self.assertEqual(pagos.transferencias_periodo_anterior, D("30"))
+        self.assertEqual(pagos.transferencias_del_mes, D("30"))  # mismo mes, con los honorarios
         self.assertEqual(pagos.beneficios_del_mes, D("5"))  # se paga en el mismo mes
         self.assertEqual(pagos.total, D("100") + D("30") + D("20") + D("5"))
 
