@@ -1,0 +1,53 @@
+{% extends "gestion/base.html" %}
+{% load formato %}
+{% block titulo %}{{ prop.titulo }} — {{ periodo }}{% endblock %}
+{% block contenido %}
+  <h1>{{ prop.titulo }} — {{ periodo }}</h1>
+  <p class="subtitulo">
+    Importes leídos de {{ prop.documentos|length }} documento{{ prop.documentos|length|pluralize }}:
+    {% for d in prop.documentos %}{{ d.nombre_archivo }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Revisá los cambios: al aplicar se reemplaza el importe de cada persona en la nómina (en todos sus renglones del mes).
+  </p>
+  {% for e in prop.errores %}<div class="aviso error">{{ e }}</div>{% endfor %}
+  {% for a in prop.avisos %}<div class="aviso">{{ a }}</div>{% endfor %}
+
+  <div class="contenedor-tabla">
+    <table class="reporte">
+      <thead><tr>
+        <th>Persona</th><th>CUIL</th><th>Actual</th><th>Según documentos</th><th>Diferencia</th>
+        {% if grupo == "haberes" %}<th>1ª quincena actual</th><th>1ª quincena nueva</th>{% endif %}<th>Detalle</th>
+      </tr></thead>
+      <tbody>
+        {% for f in prop.filas %}
+          <tr class="{% if f.cambia %}destacado{% endif %}">
+            <td>{{ f.persona }}</td><td>{{ f.cuil|default:"(sin CUIL)" }}</td>
+            <td>{{ f.actual|moneda }}</td>
+            <td>{% if f.nuevo is not None %}{{ f.nuevo|moneda }}{% else %}— no figura (no se cambia){% endif %}</td>
+            <td class="{% if f.diferencia and f.diferencia < 0 %}negativo{% endif %}">{% if f.diferencia %}{{ f.diferencia|moneda }}{% endif %}</td>
+            {% if grupo == "haberes" %}<td>{{ f.actual_del_mes|moneda }}</td><td>{% if f.nuevo_del_mes is not None %}{{ f.nuevo_del_mes|moneda }}{% endif %}</td>{% endif %}
+            <td class="texto-chico">{{ f.detalle }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr class="total"><td colspan="2">TOTAL de las personas que figuran en los documentos</td><td>{{ prop.total_actual|moneda }}</td><td>{{ prop.total_nuevo|moneda }}</td><td></td>{% if grupo == "haberes" %}<td></td><td></td>{% endif %}<td></td></tr></tfoot>
+    </table>
+  </div>
+
+  {% if prop.sin_renglon %}
+    <h2>En los documentos pero sin renglón en la nómina de {{ periodo }}</h2>
+    <p class="nota">No se cargan solos: si corresponde, agregá a la persona en la nómina del mes (o el importe en otro mes) y volvé a aplicar.</p>
+    <div class="contenedor-tabla"><table class="reporte">
+      <thead><tr><th>Nombre en el documento</th><th>CUIL</th><th>Importe</th></tr></thead>
+      <tbody>{% for cuil, nombre, importe in prop.sin_renglon %}<tr><td>{{ nombre }}</td><td>{{ cuil }}</td><td>{{ importe|moneda }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  {% endif %}
+
+  <p class="nota">{{ prop.con_cambios|length }} persona{{ prop.con_cambios|length|pluralize }} con cambios.</p>
+  <div class="acciones-pie">
+    {% if puede_editar and prop.con_cambios %}
+      <form method="post">{% csrf_token %}<button type="submit" class="boton boton-principal">Aplicar a la nómina de {{ periodo }}</button></form>
+    {% endif %}
+    <a class="boton" href="{% url 'nomina_documentos' periodo.anio periodo.mes %}">Volver a los documentos</a>
+    <a class="boton" href="{% url 'nomina_mes' periodo.anio periodo.mes %}">Ver la nómina</a>
+  </div>
+{% endblock %}

@@ -13,3 +13,8 @@ def moneda(valor, decimales=2):
 @register.filter
 def porcentaje(valor, decimales=1):
     return formato.porcentaje(valor, int(decimales))
+
+
+@register.filter
+def get_item(diccionario, clave):
+    return diccionario.get(clave)

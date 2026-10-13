@@ -37,7 +37,7 @@
 
   <h2>Carga de datos</h2>
   <div class="enlaces">
-    {% if perms.gestion.view_liquidacionnomina %}<a href="{% url 'admin:gestion_liquidacionnomina_changelist' %}">Personal y Nómina<span>Un renglón por persona y por mes</span></a>{% endif %}
+    {% if perms.gestion.view_liquidacionnomina %}<a href="{% url 'nomina' %}">Personal y Nómina<span>Planilla del mes editable, y documentos (F.931, recibos, sindicatos)</span></a>{% endif %}
     {% if perms.gestion.view_compra %}<a href="{% url 'admin:gestion_compra_changelist' %}">Registro de Compras<span>Un renglón por factura de compra</span></a>{% endif %}
     {% if perms.gestion.view_venta %}<a href="{% url 'admin:gestion_venta_changelist' %}">Registro de Ventas<span>Un renglón por factura de venta</span></a>{% endif %}
     {% if perms.gestion.view_gastomanual %}<a href="{% url 'admin:gestion_gastomanual_changelist' %}">Apertura de gastos (carga manual)<span>Alquileres, seguros, leasing, gastos bancarios…</span></a>{% endif %}

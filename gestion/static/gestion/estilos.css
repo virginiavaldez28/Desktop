@@ -149,3 +149,31 @@ h2 { font-size: 18px; margin: 24px 0 8px; }
   body { background: #fff; }
 }
 .comparar[hidden] { display: none; }
+
+/* Nómina del mes (grilla editable) */
+.grilla-nomina td { padding: 3px 4px; vertical-align: top; }
+.grilla-nomina td:first-child { min-width: 230px; text-align: left; }
+.grilla-nomina input.importe { width: 118px; text-align: right; font: inherit; font-variant-numeric: tabular-nums; }
+.grilla-nomina input[name$="porcentaje_afectacion"] { width: 60px; }
+.grilla-nomina select, .grilla-nomina input, .grilla-nomina textarea {
+  background: var(--fondo); color: var(--texto); border: 1px solid var(--borde); border-radius: 4px; padding: 3px 4px; font: inherit;
+}
+.grilla-nomina select[name$="asignacion"] { max-width: 190px; }
+.grilla-nomina select[name$="persona"] { max-width: 230px; }
+.grilla-nomina textarea { width: 220px; min-height: 26px; }
+.grilla-nomina .centro { text-align: center; }
+.grilla-nomina tr.nuevo td { background: var(--seccion); }
+.grilla-nomina tr.con-error td { background: color-mix(in srgb, var(--negativo) 12%, transparent); }
+.grilla-nomina .errores { color: var(--negativo); font-size: 12px; white-space: normal; max-width: 260px; }
+.grilla-nomina tfoot td { text-align: right; }
+.aviso.error { border-color: var(--negativo); color: var(--negativo); }
+.formulario { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 18px; }
+.formulario label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--texto-2); }
+.formulario input, .formulario select, .formulario textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--superficie); color: var(--texto); }
+.formulario small { color: var(--texto-3); }
+.formulario .errores, .errores { color: var(--negativo); font-size: 12px; }
+.tabla-simple td, .tabla-simple th { text-align: left !important; white-space: normal !important; }
+td.texto-chico { font-size: 12px; color: var(--texto-2); white-space: normal; text-align: left; min-width: 280px; }
+button.enlace { background: none; border: 0; color: var(--acento); cursor: pointer; font: inherit; padding: 0; }
+.acciones-pie { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+.acciones-pie form { margin: 0; }

@@ -15,7 +15,7 @@ SOLO_LECTURA = "Solo lectura"
 TODAS = ("add", "change", "delete", "view")
 MODELOS_GESTION = (
     "periodo", "asignacionmanual", "persona", "cliente", "proveedor",
-    "liquidacionnomina", "compra", "venta", "gastomanual",
+    "liquidacionnomina", "compra", "venta", "gastomanual", "documentonomina",
 )
 
 PERMISOS_POR_ROL = {
@@ -25,7 +25,7 @@ PERMISOS_POR_ROL = {
         + [("gestion", None, "ver_reportes")]
     ),
     CARGA_PERSONAL: (
-        [("gestion", m, a) for m in ("persona", "liquidacionnomina") for a in TODAS]
+        [("gestion", m, a) for m in ("persona", "liquidacionnomina", "documentonomina") for a in TODAS]
         + [("gestion", "periodo", "view")]
     ),
     CARGA_COMPRAS: (

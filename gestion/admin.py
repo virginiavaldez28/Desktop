@@ -15,6 +15,7 @@ from .catalogos import AsignacionPersonal, ModoAsignacion
 from .formato import moneda
 from .models import (
     AsignacionManual,
+    DocumentoNomina,
     Cliente,
     Compra,
     GastoManual,
@@ -387,3 +388,14 @@ class UsuarioAdmin(UserAdmin):
     def save_model(self, request, obj, form, change):
         obj.is_staff = True  # necesario para entrar a las pantallas de carga
         super().save_model(request, obj, form, change)
+
+
+@admin.register(DocumentoNomina)
+class DocumentoNominaAdmin(CargaMensualAdmin):
+    list_display = ("periodo", "tipo", "archivo", "primera_quincena", "intereses", "creado_por", "creado_en", "aplicado_en")
+    list_filter = ("periodo", "tipo")
+    readonly_fields = ("aplicado_en",)
+    fields = ("periodo", "tipo", "archivo", "primera_quincena", "intereses", "observaciones", "aplicado_en")
+
+    def has_add_permission(self, request):
+        return False  # se suben desde "Nómina del mes → Documentos", que los lee y valida

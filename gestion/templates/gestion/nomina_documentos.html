@@ -1,0 +1,55 @@
+{% extends "gestion/base.html" %}
+{% block titulo %}Documentos de nómina {{ periodo }}{% endblock %}
+{% block contenido %}
+  <h1>Documentos de nómina — {{ periodo }}</h1>
+  <p class="subtitulo">
+    Subí el F.931, los recibos (o el Libro de Sueldos) y las planillas sindicales del período. La aplicación lee los importes de
+    cada persona y te muestra los cambios antes de pasarlos a la nómina. Después, todo se puede seguir modificando a mano.
+  </p>
+  <div class="panel filtros">
+    <label>Mes
+      <select onchange="location.href=this.value">
+        {% for p in periodos %}<option value="{% url 'nomina_documentos' p.anio p.mes %}" {% if p.pk == periodo.pk %}selected{% endif %}>{{ p }}</option>{% endfor %}
+      </select>
+    </label>
+    <div class="acciones"><a class="boton" href="{% url 'nomina_mes' periodo.anio periodo.mes %}">Ver la nómina del mes</a></div>
+  </div>
+  {% if messages %}{% for m in messages %}<div class="aviso {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+
+  {% if puede_editar %}
+    <h2>Subir un documento</h2>
+    <form method="post" enctype="multipart/form-data" class="panel formulario">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="aviso error">{{ form.non_field_errors }}</div>{% endif %}
+      {% for campo in form %}
+        <label>{{ campo.label }}{{ campo }}{% if campo.help_text %}<small>{{ campo.help_text }}</small>{% endif %}{% for e in campo.errors %}<span class="errores">{{ e }}</span>{% endfor %}</label>
+      {% endfor %}
+      <p><button type="submit" class="boton boton-principal">Subir y leer</button></p>
+    </form>
+  {% endif %}
+
+  {% for g in grupos %}
+    <h2>{{ g.titulo }}</h2>
+    {% if g.documentos %}
+      <div class="contenedor-tabla">
+        <table class="reporte tabla-simple">
+          <thead><tr><th>Documento</th><th>Tipo</th><th>Subido</th><th>Aplicado a la nómina</th><th></th></tr></thead>
+          <tbody>
+            {% for d in g.documentos %}
+              <tr>
+                <td><a href="{% url 'documento_descargar' d.pk %}">{{ d.nombre_archivo }}</a>{% if d.observaciones %}<br><small>{{ d.observaciones }}</small>{% endif %}</td>
+                <td>{{ d.get_tipo_display }}{% if d.primera_quincena %} · 1ª quincena{% endif %}{% if d.intereses %} · intereses {{ d.intereses }}{% endif %}</td>
+                <td>{{ d.creado_en|date:"d/m/Y H:i" }} · {{ d.creado_por|default:"" }}</td>
+                <td>{% if d.aplicado_en %}{{ d.aplicado_en|date:"d/m/Y H:i" }}{% else %}Pendiente{% endif %}</td>
+                <td>{% if puede_editar %}<form method="post" action="{% url 'documento_borrar' d.pk %}" onsubmit="return confirm('¿Borrar este documento?')">{% csrf_token %}<button class="enlace" type="submit">Borrar</button></form>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p><a class="boton" href="{% url 'nomina_documentos_aplicar' periodo.anio periodo.mes g.clave %}">Ver cambios por persona{% if puede_editar %} y aplicar{% endif %}</a></p>
+    {% else %}
+      <p class="nota">Todavía no hay documentos de este tipo en {{ periodo }}.</p>
+    {% endif %}
+  {% endfor %}
+{% endblock %}

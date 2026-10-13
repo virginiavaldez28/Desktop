@@ -87,6 +87,11 @@ USE_THOUSAND_SEPARATOR = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Documentos subidos (F.931, recibos, planillas sindicales). Nunca se publican: se descargan con usuario.
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/documentos-subidos/"
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000  # la grilla de nómina tiene muchos campos
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},

@@ -15,6 +15,7 @@
           <a href="{% url 'reporte' clave %}" {% if clave == nombre %}class="activo"{% endif %}>{{ titulo }}</a>
         {% endfor %}
       {% endif %}
+      {% if perms.gestion.view_liquidacionnomina %}<a href="{% url 'nomina' %}" {% if nombre == "nomina" %}class="activo"{% endif %}>Nómina del mes</a>{% endif %}
       <a href="{% url 'admin:index' %}">Carga de datos</a>
     </nav>
     <div class="usuario">

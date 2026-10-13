@@ -319,7 +319,9 @@ class LiquidacionNomina(Auditable):
         if (self.haberes is not None and self.haberes_pagados_en_el_mes is not None
                 and self.haberes_pagados_en_el_mes > self.haberes):
             errores["haberes_pagados_en_el_mes"] = "No puede ser mayor que los haberes del período."
-        if self.persona_id and self.periodo_id and self.porcentaje_afectacion is not None:
+        # La grilla del mes controla el total por persona con lo que está en pantalla (ver nomina.py).
+        if (self.persona_id and self.periodo_id and self.porcentaje_afectacion is not None
+                and not getattr(self, "_porcentaje_controlado_en_grilla", False)):
             otros = (
                 LiquidacionNomina.objects.filter(persona_id=self.persona_id, periodo_id=self.periodo_id)
                 .exclude(pk=self.pk)
@@ -473,3 +475,45 @@ class GastoManual(Auditable):
 
     def __str__(self):
         return f"{self.get_rubro_display()} — {self.concepto} — {self.periodo}"
+
+
+class DocumentoNomina(Auditable):
+    """Documento de respaldo de la nómina de un mes, del que se leen importes por persona."""
+
+    class Tipo(models.TextChoices):
+        F931 = "F931", "F.931 (contribuciones patronales)"
+        RECIBOS = "RECIBOS", "Recibos de sueldo (PDF)"
+        LSD = "LSD", "Libro de Sueldos Digital (PDF)"
+        SINDICATO_SPP = "SPP", "Sindicato Petroleros Privados — cálculo de deuda"
+        SINDICATO_JERARQUICOS = "JERARQUICOS", "Sindicato Petroleros Jerárquicos — planilla"
+        SINDICATO_UOCRA = "UOCRA", "UOCRA — DDJJ (Fondo de Cese, FICS, IERIC, FODECO)"
+
+    periodo = models.ForeignKey(Periodo, verbose_name="período", on_delete=models.CASCADE, related_name="documentos")
+    tipo = models.CharField("tipo de documento", max_length=20, choices=Tipo.choices)
+    archivo = models.FileField("archivo PDF", upload_to="nomina/%Y/%m/")
+    primera_quincena = models.BooleanField(
+        "es la 1ª quincena", default=False,
+        help_text="Sólo para el Libro de Sueldos: marcalo si es la liquidación de la 1ª quincena (UOCRA), que se paga "
+                  "dentro del mismo mes. En los recibos se detecta solo.",
+    )
+    intereses = models.DecimalField(
+        "intereses o recargos pagados", max_digits=16, decimal_places=2, default=Decimal("0"),
+        help_text="Opcional, para sindicatos: intereses por pago fuera de término que no figuran en el documento "
+                  "(ej. actualización de las boletas IERIC/FODECO). Se reparten entre las personas en proporción.",
+    )
+    observaciones = models.TextField(blank=True)
+    aplicado_en = models.DateTimeField("aplicado el", null=True, blank=True)
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "documento de nómina"
+        verbose_name_plural = "documentos de nómina"
+        ordering = ["-periodo__anio", "-periodo__mes", "tipo", "creado_en"]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} — {self.periodo} — {self.nombre_archivo}"
+
+    @property
+    def nombre_archivo(self):
+        return self.archivo.name.rsplit("/", 1)[-1] if self.archivo else ""

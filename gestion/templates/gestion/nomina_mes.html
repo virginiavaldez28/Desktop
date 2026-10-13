@@ -1,0 +1,105 @@
+{% extends "gestion/base.html" %}
+{% load formato %}
+{% block titulo %}Nómina {{ periodo }}{% endblock %}
+{% block contenido %}
+  <h1>Personal y Nómina — {{ periodo }}</h1>
+  <p class="subtitulo">
+    Un renglón por persona y por servicio. Los importes son los del período (devengado); cada celda se puede modificar.
+    {% if periodo.cerrado %}<strong>Mes cerrado{% if puede_editar %}: lo podés modificar porque sos Administrador{% endif %}.</strong>{% endif %}
+  </p>
+
+  <div class="panel filtros">
+    <label>Mes
+      <select onchange="location.href=this.value">
+        {% for p in periodos %}<option value="{% url 'nomina_mes' p.anio p.mes %}" {% if p.pk == periodo.pk %}selected{% endif %}>{{ p }}</option>{% endfor %}
+      </select>
+    </label>
+    <div class="acciones">
+      <a class="boton" href="{% url 'nomina_documentos' periodo.anio periodo.mes %}">Documentos del mes (F.931, recibos, sindicatos)</a>
+      <a class="boton" href="{% url 'admin:gestion_persona_add' %}" target="_blank">Agregar una persona nueva</a>
+    </div>
+  </div>
+
+  {% if messages %}{% for m in messages %}<div class="aviso {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+  {% if formset.non_form_errors %}<div class="aviso error">{{ formset.non_form_errors }}</div>{% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <div class="contenedor-tabla">
+      <table class="reporte grilla-nomina">
+        <thead>
+          <tr>
+            <th>Persona</th><th>¿MOD?</th><th>Servicio asignado</th><th>% afect.</th><th>Régimen</th>
+            {% for c, titulo in columnas %}<th>{{ titulo }}</th>{% endfor %}
+            <th>Costo total</th><th>Observaciones</th>{% if puede_editar %}<th>Borrar</th>{% endif %}<th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for form in formset %}
+            <tr class="renglon{% if form.errors %} con-error{% endif %}{% if not form.instance.pk %} nuevo{% endif %}">
+              <td>{{ form.id }}{{ form.persona }}{% if form.errors %}<div class="errores">{% for campo, errs in form.errors.items %}{% for e in errs %}<div>{{ e }}</div>{% endfor %}{% endfor %}</div>{% endif %}</td>
+              <td class="centro">{{ form.mano_obra_directa }}</td>
+              <td>{{ form.asignacion }}</td>
+              <td>{{ form.porcentaje_afectacion }}</td>
+              <td>{{ form.regimen }}</td>
+              <td>{{ form.haberes }}</td>
+              <td>{{ form.haberes_pagados_en_el_mes }}</td>
+              <td>{{ form.contribuciones_patronales }}</td>
+              <td>{{ form.sindicato_mutual }}</td>
+              <td>{{ form.honorarios }}</td>
+              <td>{{ form.pagos_transferencia }}</td>
+              <td>{{ form.beneficios_adicionales }}</td>
+              <td class="total-renglon">{% if form.instance.pk %}{{ form.instance.total_mes|moneda }}{% endif %}</td>
+              <td>{{ form.observaciones }}</td>
+              {% if puede_editar %}<td class="centro">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>{% endif %}
+              <td>{% if form.instance.pk %}<a href="{% url 'admin:gestion_liquidacionnomina_history' form.instance.pk %}" title="Historial de cambios" target="_blank">Historial</a>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total">
+            <td colspan="5">TOTAL DEL MES</td>
+            {% for c, titulo in columnas %}<td data-total="{{ c }}">{{ totales|get_item:c|moneda }}</td>{% endfor %}
+            <td id="total-costo">{{ total_costo|moneda }}</td>
+            <td colspan="{% if puede_editar %}3{% else %}2{% endif %}">Asignado a servicios: {{ total_asignado|moneda }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="nota">
+      Las personas que trabajan para dos servicios (ej. franqueros 50 % PAE / 50 % Pool) llevan un renglón por servicio, cada uno con el
+      importe completo y su %. Los renglones vacíos del final sirven para agregar personas al mes. Costo total = haberes + contribuciones +
+      sindicato + honorarios + transferencias + beneficios. La 1ª quincena es la parte de los haberes que se paga dentro del mismo mes (UOCRA).
+    </p>
+    {% if puede_editar %}<p><button type="submit" class="boton boton-principal">Guardar cambios</button></p>{% endif %}
+  </form>
+
+  <script>
+    (function () {
+      const num = (t) => { t = (t || "").trim(); if (!t) return 0; return parseFloat(t.replace(/\./g, "").replace(",", ".")) || 0; };
+      const fmt = (n) => "$ " + n.toLocaleString("es-AR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      const COSTO = ["haberes", "contribuciones_patronales", "sindicato_mutual", "honorarios", "pagos_transferencia", "beneficios_adicionales"];
+      function recalcular() {
+        const totales = {}; let costo = 0;
+        document.querySelectorAll("tr.renglon").forEach((tr) => {
+          const borrar = tr.querySelector("input[name$='-DELETE']");
+          let fila = 0;
+          tr.querySelectorAll("input[data-columna]").forEach((inp) => {
+            const v = (borrar && borrar.checked) ? 0 : num(inp.value);
+            totales[inp.dataset.columna] = (totales[inp.dataset.columna] || 0) + v;
+            if (COSTO.includes(inp.dataset.columna)) fila += v;
+          });
+          costo += fila;
+          const celda = tr.querySelector(".total-renglon");
+          if (celda) celda.textContent = fila ? fmt(fila) : "";
+        });
+        document.querySelectorAll("[data-total]").forEach((td) => { td.textContent = fmt(totales[td.dataset.total] || 0); });
+        document.getElementById("total-costo").textContent = fmt(costo);
+      }
+      document.addEventListener("input", recalcular);
+      document.addEventListener("change", recalcular);
+      {% if not puede_editar %}document.querySelectorAll(".grilla-nomina input, .grilla-nomina select, .grilla-nomina textarea").forEach((e) => e.disabled = true);{% endif %}
+    })();
+  </script>
+{% endblock %}
