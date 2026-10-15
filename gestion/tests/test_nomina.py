@@ -317,3 +317,49 @@ class CruceRecibosLibroTest(TestCase):
 
     def test_sin_los_dos_documentos_no_hay_cruce(self):
         self.assertIsNone(docs.cruce_recibos_libro(self.periodo))
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class CopiarMesTest(TestCase):
+    def test_copia_personas_activas_con_importes_en_cero(self):
+        agosto = Periodo.objects.create(anio=2026, mes=8)
+        activa = Persona.objects.create(apellido_nombre="Activa", cuil="27111111111")
+        baja = Persona.objects.create(apellido_nombre="Baja", cuil="20222222222", activa=False)
+        for p in (activa, baja):
+            LiquidacionNomina.objects.create(persona=p, periodo=agosto, mano_obra_directa=True, haberes=D("1000"),
+                                             asignacion=AsignacionPersonal.POOL, porcentaje_afectacion=D("60"))
+        u = User.objects.create_user("carga", password="x", is_staff=True)
+        u.groups.set(Group.objects.filter(name=CARGA_PERSONAL))
+        self.client.force_login(u)
+        self.assertContains(self.client.get("/nomina/2026-8/"), "Preparar el mes siguiente")
+        r = self.client.post("/nomina/2026-9/copiar/")
+        self.assertRedirects(r, "/nomina/2026-9/", fetch_redirect_response=False)
+        sep = LiquidacionNomina.objects.get(periodo__anio=2026, periodo__mes=9)
+        self.assertEqual((sep.persona, sep.porcentaje_afectacion, sep.haberes, sep.asignacion),
+                         (activa, D("60"), D("0"), AsignacionPersonal.POOL))
+        self.client.post("/nomina/2026-9/copiar/")  # si ya tiene renglones no duplica
+        self.assertEqual(LiquidacionNomina.objects.filter(periodo__mes=9).count(), 1)
+
+
+RECIBO_COLUMNAS = """
+________________________________________________________________________________________
+|GLOBAL GROUP S.A.S.                                                                   |
+|CCo Lega. Apellido y Nombre                           T Documento Ingreso    C.U.I.L. |
+|  1     1 PRUEBA.ANA MARIA                            1  11111111 02011926 27111111111|
+|Fec.Pago Lugar de Pago                      Periodo Abonado                           |
+|05102026 CENTENARIO                         MES DE SEPTIEMBRE DE 2026                 |
+| Cto |Descripcion                   |  Unidades|Remunerativo|No Remunera.|Dctos/Contr.|
+|    4|HORAS EXTRAS 50%              |      4.00|    67667.72|            |            |
+|  228|ASIGNACION VACA MUERTA        |      1.00|            |   418000.00|            |
+|  241|JUBILACION 11 %               |          |            |            |   277894.76|
+|Subtotales                          |    107.00|    67667.72|   418000.00|   277894.76|
+"""
+
+
+class RecibosColumnasTest(TestCase):
+    def test_formato_remunerativo_no_remunerativo(self):
+        r = lectores.leer_recibos(RECIBO_COLUMNAS, 2026, 9)
+        self.assertEqual(r.importes["27111111111"], D("485667.72"))
+        self.assertEqual(r.nombres["27111111111"], "PRUEBA, ANA MARIA")
+        self.assertEqual(r.conceptos["27111111111"]["004"][1], D("67667.72"))
+        self.assertNotIn("27111111111", r.del_mes)  # pagado el 05/10: mes siguiente

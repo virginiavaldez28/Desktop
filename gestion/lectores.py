@@ -87,7 +87,8 @@ def leer_f931(texto):
     m_fijo = re.search(r"Cantidad de CUILES con ART\s*(\d+)\s*([\d.]+,\d\d)", plano)
     m_scvo = re.search(r"Cuiles c/S\.C\.V\.O\. - Prima\s*(\d+)\s*-\s*([\d.]+,\d\d)", plano)
     if not (m_art and m_fijo):
-        raise ErrorLectura("No encontré en el F.931 los datos de la ART (Remun. con ART / Cantidad de CUILES con ART).")
+        raise ErrorLectura("Falta la parte de la ART: subí el F.931 completo (la DDJJ con el resumen, sección "
+                           "\"VII - Ley de Riesgos de Trabajo\"), no sólo el listado de la nómina.")
     base, variable = _ar(m_art.group(1)), _ar(m_art.group(2))
     tasa = (variable / base).quantize(Decimal("0.0001"), ROUND_HALF_UP) if base else CERO
     cuiles_art = int(m_fijo.group(1)) or 1
@@ -119,6 +120,27 @@ def _sumar_conceptos(lectura, cuil, conceptos):
         actual[1] += importe
 
 
+def _recibos_columnas(texto):
+    """Recibos con columnas Remunerativo / No Remunera. / Dctos (formato de Global Group)."""
+    vistos = {}
+    for bloque in re.split(r"\n(?=\|(?:GROUP VALPOB S\.R\.L\.|GLOBAL GROUP S\.A\.S\.) )", "\n" + texto):
+        m = re.search(r"\|\s*\d+\s+\d+\s+(\S.+?)\s+\d\s+\d+\s+\d{8}\s+(\d{11})\|", bloque)
+        if not m:
+            continue
+        per = re.search(r"\n\|(\d{2})(\d{2})(\d{4}) .+? {2,}(\S.+?) *\|\n", bloque)
+        periodo = per.group(4).strip() if per else ""
+        pago = (int(per.group(3)), int(per.group(2))) if per else None
+        conceptos = []
+        for c in re.finditer(r"\|\s*(\d{1,3})\|(.{30})\|[^|]*\| *(-?[\d.]*)\| *(-?[\d.]*)\|", bloque):
+            importe = Decimal(c.group(3) or 0) + Decimal(c.group(4) or 0)
+            conceptos.append((c.group(1).zfill(3), c.group(2).strip(), importe))
+        sub = re.search(r"\|Subtotales *\|[^|]*\| *([\d.]+)\| *([\d.]+)\|", bloque)
+        haberes = Decimal(sub.group(1)) + Decimal(sub.group(2)) if sub else sum((c[2] for c in conceptos), CERO)
+        nombre = m.group(1).replace(".", ", ", 1).strip()
+        vistos[(m.group(2), periodo)] = (nombre, haberes, conceptos, pago)
+    return vistos
+
+
 def leer_recibos(texto, anio=None, mes=None):
     """Haberes brutos (SubT) de cada recibo.
 
@@ -143,6 +165,8 @@ def leer_recibos(texto, anio=None, mes=None):
             r"\|(\d{3})\|(.{25})\|[^|]*\|[^|]*\| *(-?[\d.]+)\|", bloque)]
         # los recibos vienen duplicados (original y copia)
         vistos[(m.group(3), periodo)] = (m.group(2).strip(), haberes, conceptos, pago)
+    if not vistos:
+        vistos = _recibos_columnas(texto)
     if not vistos:
         raise ErrorLectura("No encontré recibos en el PDF.")
     lectura = Lectura()

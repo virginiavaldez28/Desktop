@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied
 from django.forms import modelformset_factory
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .models import LiquidacionNomina, Periodo, Persona
 from .roles import es_administrador, puede_ver_reportes
@@ -115,6 +116,50 @@ def nomina_ultimo_mes(request):
     return redirect("nomina_mes", anio=p.anio, mes=p.mes)
 
 
+def _mes_siguiente(anio, mes):
+    return (anio + 1, 1) if mes == 12 else (anio, mes + 1)
+
+
+def _mes_anterior(anio, mes):
+    return (anio - 1, 12) if mes == 1 else (anio, mes - 1)
+
+
+@login_required
+@require_POST
+def nomina_copiar_mes(request, anio, mes):
+    """Arma la nómina de un mes copiando personas, servicios y % del mes anterior (importes en 0).
+    Crea el mes si no existe. No copia a las personas dadas de baja (Persona.activa = No)."""
+    if not request.user.has_perm("gestion.add_liquidacionnomina"):
+        raise PermissionDenied("No tenés permiso para cargar la nómina.")
+    anterior = Periodo.objects.filter(anio=_mes_anterior(anio, mes)[0], mes=_mes_anterior(anio, mes)[1]).first()
+    if anterior is None:
+        messages.error(request, "No existe el mes anterior para copiar.")
+        return redirect("nomina")
+    periodo, _ = Periodo.objects.get_or_create(anio=anio, mes=mes, defaults={"creado_por": request.user})
+    if periodo.cerrado and not es_administrador(request.user):
+        raise PermissionDenied("Este mes está cerrado.")
+    if LiquidacionNomina.objects.filter(periodo=periodo).exists():
+        messages.warning(request, f"{periodo} ya tiene renglones de nómina: no se copió nada.")
+        return redirect("nomina_mes", anio=anio, mes=mes)
+    copiados, bajas = 0, set()
+    for r in LiquidacionNomina.objects.filter(periodo=anterior).select_related("persona"):
+        if not r.persona.activa:
+            bajas.add(str(r.persona))
+            continue
+        LiquidacionNomina.objects.create(
+            persona=r.persona, periodo=periodo, mano_obra_directa=r.mano_obra_directa, asignacion=r.asignacion,
+            porcentaje_afectacion=r.porcentaje_afectacion, regimen=r.regimen,
+            creado_por=request.user, modificado_por=request.user,
+        )
+        copiados += 1
+    texto = (f"Se armó la nómina de {periodo} con {copiados} renglones copiados de {anterior} (importes en 0). "
+             "Subí los documentos del mes para completar los importes.")
+    if bajas:
+        texto += f" No se copiaron las personas dadas de baja: {', '.join(sorted(bajas))}."
+    messages.success(request, texto)
+    return redirect("nomina_mes", anio=anio, mes=mes)
+
+
 @login_required
 def documentos_ultimo_mes(request):
     periodos = _periodos()
@@ -163,6 +208,10 @@ def nomina_mes(request, anio, mes):
     return render(request, "gestion/nomina_mes.html", {
         "periodo": periodo,
         "periodos": _periodos(),
+        "siguiente": _mes_siguiente(periodo.anio, periodo.mes),
+        "es_ultimo": periodo.pk == _periodos()[-1].pk,
+        "vacio": not renglones.exists(),
+        "anterior_existe": Periodo.objects.filter(anio=_mes_anterior(anio, mes)[0], mes=_mes_anterior(anio, mes)[1]).exists(),
         "formset": formset,
         "puede_editar": puede_editar,
         "columnas": [(c, TITULOS[c]) for c in CAMPOS_IMPORTE],

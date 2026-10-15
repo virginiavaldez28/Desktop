@@ -17,8 +17,18 @@
     <div class="acciones">
       <a class="boton" href="{% url 'nomina_documentos' periodo.anio periodo.mes %}">Documentos del mes (F.931, recibos, sindicatos)</a>
       <a class="boton" href="{% url 'admin:gestion_persona_add' %}" target="_blank">Agregar una persona nueva</a>
+      {% if puede_editar and es_ultimo and not vacio %}
+        <form method="post" action="{% url 'nomina_copiar_mes' siguiente.0 siguiente.1 %}" onsubmit="return confirm('¿Armar la nómina del mes siguiente copiando personas, servicios y % de este mes?')">{% csrf_token %}
+          <button type="submit" class="boton">Preparar el mes siguiente</button></form>
+      {% endif %}
     </div>
   </div>
+  {% if vacio and anterior_existe and puede_editar %}
+    <div class="aviso">Este mes todavía no tiene nómina.
+      <form method="post" action="{% url 'nomina_copiar_mes' periodo.anio periodo.mes %}" style="display:inline">{% csrf_token %}
+        <button type="submit" class="boton boton-principal">Copiar personas y servicios del mes anterior</button></form>
+    </div>
+  {% endif %}
 
   {% if messages %}{% for m in messages %}<div class="aviso {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
   {% if formset.non_form_errors %}<div class="aviso error">{{ formset.non_form_errors }}</div>{% endif %}
